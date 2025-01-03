@@ -162,14 +162,16 @@ export class DocumentService {
   async getDocuments(email: string): Promise<Document[]> {
     try {
       console.log('Fetching documents with:', {
-        url: `${API_BASE_URL}/documents`,
+        url: `${API_BASE_URL}/documents/get-documents-by-email`,
         params: { email }
       });
       
-      const response = await axios.get(`${API_BASE_URL}/documents`, {
+      const response = await axios.get(`${API_BASE_URL}/documents/get-documents-by-email`, {
         params: { email }
       });
-      return response.data.documents;
+      console.log("this is the response for the getDocuments function:", response);
+      console.log("these are the objects that have been fetched:", response.data);
+      return response.data;
     } catch (error) {
       console.error('Error fetching documents:', error);
       throw new DocumentUploadError(

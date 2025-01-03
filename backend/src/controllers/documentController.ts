@@ -121,14 +121,9 @@ export class DocumentController {
 
       const apiDocuments = await documentService.getDocumentsByEmail(email);
     
-    const transformedDocuments = apiDocuments.map(doc => ({
-      name: doc.filename,
-      uploadOn: doc.created_at,
-      s3Key: doc.s3_key
-    }));
 
-    logInfo('Documents fetched successfully', { email, count: transformedDocuments.length });
-    res.json(transformedDocuments);
+    logInfo('Documents fetched successfully', { email, count: apiDocuments.length });
+    res.json(apiDocuments);
     } catch (error: any) {
       logError('Error in getDocuments', error, { query: req.query });
       res.status(500).json({ error: 'Failed to fetch documents' });
