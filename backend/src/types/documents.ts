@@ -35,7 +35,7 @@ export interface Document {
   s3_key: string;
   file_size: number;
   file_type: string;
-  upload_status: 'pending' | 'completed' | 'failed';
+  upload_status?: 'pending' | 'completed' | 'failed';
   created_at: Date;
   error?: string;
 }

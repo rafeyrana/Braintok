@@ -4,6 +4,11 @@ import { documentService } from '../services/documentService';
 import { RequestUploadDTO, UploadCompletionDTO } from '../types/documents';
 import { logInfo, logError, logDebug } from '../utils/logger';
 
+export interface Document {
+  name : string,
+  uploadOn: Date,
+  s3Key: string
+}
 export class DocumentController {
   constructor() {
     // Bind methods to ensure correct 'this' context
@@ -103,6 +108,7 @@ export class DocumentController {
     }
   }
 
+  
   async getDocuments(req: any, res: any) {
     try {
       logInfo('Fetching documents', { query: req.query });
@@ -113,11 +119,16 @@ export class DocumentController {
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      const documents = await documentService.getDocumentsByEmail(email);
-      logInfo('Documents fetched successfully', { email, count: documents.length });
-      logDebug('Document list', { documents });
+      const apiDocuments = await documentService.getDocumentsByEmail(email);
+    
+    const transformedDocuments = apiDocuments.map(doc => ({
+      name: doc.filename,
+      uploadOn: doc.created_at,
+      s3Key: doc.s3_key
+    }));
 
-      res.json({ documents });
+    logInfo('Documents fetched successfully', { email, count: transformedDocuments.length });
+    res.json(transformedDocuments);
     } catch (error: any) {
       logError('Error in getDocuments', error, { query: req.query });
       res.status(500).json({ error: 'Failed to fetch documents' });
