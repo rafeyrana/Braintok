@@ -169,8 +169,6 @@ export class DocumentService {
       const response = await axios.get(`${API_BASE_URL}/documents/get-documents-by-email`, {
         params: { email }
       });
-      console.log("this is the response for the getDocuments function:", response);
-      console.log("these are the objects that have been fetched:", response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching documents:', error);
@@ -180,6 +178,13 @@ export class DocumentService {
       );
     }
   }
+}
+
+async function getDocumentAccessLinkByS3Key(s3Key: string): Promise<string> {
+  const response = await axios.get(`${API_BASE_URL}/documents/get-document-access-link`, {
+    params: { s3Key }
+  });
+  return response.data;
 }
 
 export const documentService = new DocumentService();

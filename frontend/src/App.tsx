@@ -6,6 +6,7 @@ import { store } from './store/store';
 import LandingPage from './Components/LandingPage';
 import Auth from './pages/Auth';
 import HomePage from './pages/HomePage';
+import DocumentChat from './pages/DocumentChat';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -37,6 +38,7 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route path="/document-chat/:s3Key" element={<DocumentChat />} />
           </Routes>
         </Router>
       </AuthProvider>
