@@ -7,3 +7,7 @@ router.post('/submit', WaitlistController.submitEntry);
 router.get('/entries', WaitlistController.getAllEntries);
 
 export default router;
+
+
+
+

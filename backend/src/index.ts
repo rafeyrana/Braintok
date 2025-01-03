@@ -9,9 +9,9 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5001;
 
-// Middleware
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'], // Allow both ports
+  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.VERCEL_URL || ""], // Allow both ports
   credentials: true
 }));
 app.use(express.json());
