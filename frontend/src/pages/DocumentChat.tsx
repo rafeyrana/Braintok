@@ -44,27 +44,35 @@ const DocumentChat: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <div className="flex flex-col min-h-screen bg-black">
+      {/* Navbar */}
       <Navbar />
-      <Sidebar />
-      <main className="pt-16 pl-64 container mx-auto px-4 sm:px-6 lg:px-8">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-purple-400">Loading...</div>
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-red-400">Error: {error}</div>
-          </div>
-        ) : documentDetails?.presignedUrl ? (
-          <div className="py-8">
-            <PDFViewer 
-              url={documentDetails.presignedUrl} 
-              onTextSelect={handleTextSelect}
-            />
-          </div>
-        ) : null}
-      </main>
+      
+      {/* Content container below navbar */}
+      <div className="flex mt-20">
+        {/* Sidebar */}
+        <Sidebar />
+
+        {/* Main content */}
+        <div className="flex-1 p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-purple-400">Loading...</div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-red-400">Error: {error}</div>
+            </div>
+          ) : documentDetails?.presignedUrl ? (
+            <div className="w-full">
+              <PDFViewer 
+                url={documentDetails.presignedUrl} 
+                onTextSelect={handleTextSelect}
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 };
