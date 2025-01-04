@@ -3,6 +3,8 @@ import { s3Service } from '../services/s3Service';
 import { documentService } from '../services/documentService';
 import { RequestUploadDTO, UploadCompletionDTO } from '../types/documents';
 import { logInfo, logError, logDebug } from '../utils/logger';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface Document {
   name : string,
@@ -15,6 +17,7 @@ export class DocumentController {
     this.requestUpload = this.requestUpload.bind(this);
     this.confirmUpload = this.confirmUpload.bind(this);
     this.getDocuments = this.getDocuments.bind(this);
+    this.getDocumentAccessLinkByS3Key = this.getDocumentAccessLinkByS3Key.bind(this);
   }
 
   async requestUpload(req: any, res: any) {
@@ -129,7 +132,33 @@ export class DocumentController {
       res.status(500).json({ error: 'Failed to fetch documents' });
     }
   }
+
+  async getDocumentAccessLinkByS3Key(req: any, res: any) {
+    try {
+      const { s3Key } = req.query;
+      console.log('s3Key', s3Key);
+      if (!s3Key || typeof s3Key !== 'string') {
+        return res.status(400).json({ error: 'Valid s3Key is required' });
+      }
+
+      const command = new GetObjectCommand({
+        Bucket: s3Service.bucketName,
+        Key: s3Key
+      });
+      console.log('command', command);
+
+      const presignedUrl = await getSignedUrl(s3Service.s3Client, command, {
+        expiresIn: 300 // 5 minutes in seconds
+      });
+      console.log('presignedUrl', presignedUrl);
+      logInfo('Generated document access link', { s3Key });
+      res.json({ presignedUrl });
+      
+    } catch (error) {
+      logError('Error generating document access link', error as Error, { s3Key: req.query.s3Key });
+      res.status(500).json({ error: 'Failed to generate document access link' });
+    }
+  }
 }
 
-// Create a single instance of the controller
 export const documentController = new DocumentController();

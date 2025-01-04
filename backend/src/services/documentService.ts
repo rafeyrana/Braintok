@@ -120,6 +120,7 @@ class DocumentService {
       throw new Error('Failed to fetch documents');
     }
   }
+
 }
 
 export const documentService = new DocumentService();

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../Components/Navbar';
 import Sidebar from '../Components/Sidebar';
+import { documentService } from '../services/documentService';
 
 interface DocumentDetails {
   title: string;
@@ -9,7 +10,7 @@ interface DocumentDetails {
 }
 
 const DocumentChat: React.FC = () => {
-  const { s3Key } = useParams<{ s3Key: string }>();
+  let { s3Key } = useParams<{ s3Key: string }>();
   const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,23 +18,12 @@ const DocumentChat: React.FC = () => {
   useEffect(() => {
     const fetchDocumentDetails = async () => {
       try {
-        setIsLoading(true);
-        const response = await fetch('/api/documents/details', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            s3Key: decodeURIComponent(s3Key!),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch document details');
+        console.log("calling getDocumentAccesslinkbys3kye using s3key: ", s3Key);
+        if (!s3Key){
+            s3Key = ""
         }
-
-        const data = await response.json();
-        setDocumentDetails(data);
+        const response = await documentService.getDocumentAccessLinkByS3Key(s3Key);
+        console.log('response from getDocumentAccesslink: ', response);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {

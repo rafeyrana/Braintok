@@ -4,8 +4,8 @@ import { logInfo, logError, logDebug, logWarn } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 class S3Service {
-  private s3Client: S3Client;
-  private bucketName: string;
+  private readonly _s3Client: S3Client;
+  private readonly _bucketName: string;
 
   constructor() {
     const region = process.env.AWS_REGION;
@@ -17,19 +17,27 @@ class S3Service {
       throw new Error('Missing required AWS configuration');
     }
 
-    this.s3Client = new S3Client({
+    this._s3Client = new S3Client({
       region,
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
     });
-    this.bucketName = bucketName;
+    this._bucketName = bucketName;
     
     logInfo('S3Service initialized', { 
       region: process.env.AWS_REGION,
-      bucket: this.bucketName 
+      bucket: this._bucketName 
     });
+  }
+
+  get bucketName() {
+    return this._bucketName;
+  }
+
+  get s3Client() {
+    return this._s3Client;
   }
 
   async generatePresignedUrl(

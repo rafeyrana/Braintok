@@ -178,13 +178,13 @@ export class DocumentService {
       );
     }
   }
-}
 
-async function getDocumentAccessLinkByS3Key(s3Key: string): Promise<string> {
-  const response = await axios.get(`${API_BASE_URL}/documents/get-document-access-link`, {
-    params: { s3Key }
-  });
-  return response.data;
+  async getDocumentAccessLinkByS3Key(s3Key: string): Promise<string> {
+    const response = await axios.get(`${API_BASE_URL}/documents/get-document-access-link`, {
+      params: { s3Key }
+    });
+    return response.data;
+  }
 }
 
 export const documentService = new DocumentService();

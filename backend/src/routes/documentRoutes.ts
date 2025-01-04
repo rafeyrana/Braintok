@@ -11,5 +11,8 @@ router.post('/confirm-upload', documentController.confirmUpload);
 // Route to get documents for a user
 router.get('/get-documents-by-email', documentController.getDocuments);
 
+// Route to get document access link by s3 key
+router.get('/get-document-access-link', documentController.getDocumentAccessLinkByS3Key);
+
 
 export default router;
