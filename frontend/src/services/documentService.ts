@@ -183,7 +183,7 @@ export class DocumentService {
     const response = await axios.get(`${API_BASE_URL}/documents/get-document-access-link`, {
       params: { s3Key }
     });
-    return response.data;
+    return response.data.presignedUrl;
   }
 }
 

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Navbar from '../Components/Navbar';
 import Sidebar from '../Components/Sidebar';
+import PDFViewer from '../Components/PDFViewer/PDFViewer';
 import { documentService } from '../services/documentService';
 
 interface DocumentDetails {
-  title: string;
-  content: string;
+  presignedUrl: string;
 }
 
 const DocumentChat: React.FC = () => {
@@ -14,6 +14,7 @@ const DocumentChat: React.FC = () => {
   const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedText, setSelectedText] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchDocumentDetails = async () => {
@@ -23,18 +24,24 @@ const DocumentChat: React.FC = () => {
             s3Key = ""
         }
         const response = await documentService.getDocumentAccessLinkByS3Key(s3Key);
-        console.log('response from getDocumentAccesslink: ', response);
+        if (!response) {
+          setError('No URL received');
+          return;
+        }
+        setDocumentDetails({ presignedUrl: response });
+        console.log("documentDetails: ", documentDetails);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setIsLoading(false);
       }
     };
-
-    if (s3Key) {
-      fetchDocumentDetails();
-    }
+    fetchDocumentDetails();
   }, [s3Key]);
+
+  const handleTextSelect = (text: string) => {
+    setSelectedText(prev => [...prev, text]);
+  };
 
   return (
     <div className="min-h-screen bg-black text-gray-100">
@@ -49,10 +56,12 @@ const DocumentChat: React.FC = () => {
           <div className="flex items-center justify-center h-64">
             <div className="text-red-400">Error: {error}</div>
           </div>
-        ) : documentDetails ? (
+        ) : documentDetails?.presignedUrl ? (
           <div className="py-8">
-            <h1 className="text-3xl font-bold text-purple-400">{documentDetails.title}</h1>
-            {/* Add your chat components here */}
+            <PDFViewer 
+              url={documentDetails.presignedUrl} 
+              onTextSelect={handleTextSelect}
+            />
           </div>
         ) : null}
       </main>
