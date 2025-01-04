@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -16,6 +16,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
+  const [selectedText, setSelectedText] = useState('');
+
+  // Reset state when URL changes
+  useEffect(() => {
+    setError(null);
+    setNumPages(0);
+    setCurrentPage(1);
+    setSelectedText('');
+  }, [url]);
 
   // Memoize the file prop
   const file = useMemo(() => ({ url }), [url]);
@@ -23,20 +32,25 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setError(null);
+    setCurrentPage(1); // Reset to first page when new document loads
   };
 
   const onDocumentLoadError = (error: Error) => {
     console.error('Error loading PDF:', error);
-    if (error.message.includes('404') || error.message.includes('not found')) {
-      setError('Document not found');
+    let errorMessage = 'Error loading document';
+    
+    if (error.name === 'MissingPDFException' || error.message.includes('Missing PDF')) {
+      errorMessage = 'Document not found or access denied';
     } else if (error.message.includes('network')) {
-      setError('Network error occurred while loading the document');
-    } else {
-      setError('Error loading document');
+      errorMessage = 'Network error occurred while loading the document';
+    } else if (error.message.includes('404')) {
+      errorMessage = 'Document not found';
     }
+    
+    setError(errorMessage);
+    setNumPages(0);
   };
 
-  const [selectedText, setSelectedText] = useState('');
 
   const handleTextSelection = () => {
     const selection = window.getSelection();

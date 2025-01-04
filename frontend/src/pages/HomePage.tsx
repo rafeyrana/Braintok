@@ -11,15 +11,11 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-black">
-      {/* Navbar */}
       <Navbar />
       
-      {/* Content container below navbar */}
-      <div className="flex mt-20"> {/* mt-20 to create space below navbar */}
-        {/* Sidebar */}
+      <div className="flex mt-20 transition-all duration-300 ease-in-out">
         <Sidebar />
 
-        {/* Main content */}
         <div className="flex-1 p-6">
           {oldUser ? (
             <div className="py-8">
