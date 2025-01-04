@@ -10,19 +10,27 @@ const HomePage: React.FC = () => {
   const [oldUser] = useState(false);
 
   return (
-    <div className="min-h-screen bg-black text-gray-100">
+    <div className="flex flex-col min-h-screen bg-black">
+      {/* Navbar */}
       <Navbar />
-      <Sidebar />
-      <main className="pt-16 pl-64 container mx-auto px-4 sm:px-6 lg:px-8">
-        {oldUser ? (
-          <div className="py-8">
-            <h1 className="text-3xl font-bold text-purple-400">Welcome to BRAINTOK</h1>
-            <p className="mt-4 text-gray-300">Logged in as: {userEmail}</p>
-          </div>
-        ) : (
-          <UploadDoc />
-        )}
-      </main>
+      
+      {/* Content container below navbar */}
+      <div className="flex mt-20"> {/* mt-20 to create space below navbar */}
+        {/* Sidebar */}
+        <Sidebar />
+
+        {/* Main content */}
+        <div className="flex-1 p-6">
+          {oldUser ? (
+            <div className="py-8">
+              <h1 className="text-3xl font-bold text-purple-400">Welcome to BRAINTOK</h1>
+              <p className="mt-4 text-gray-300">Logged in as: {userEmail}</p>
+            </div>
+          ) : (
+            <UploadDoc />
+          )}
+        </div>
+      </div>
     </div>
   );
 };

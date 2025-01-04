@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { documentService } from '../../services/documentService';
-
 import DocumentCard from '../DocumentCard/DocumentCard';
 import { Document } from '../../types/documents';
 import { useAppSelector } from '../../store/hooks';
@@ -14,7 +13,6 @@ const Sidebar: React.FC = () => {
     const fetchDocuments = async () => {
       if (userEmail) {
         try {
-          console.log('Fetching documents for:', userEmail);
           const docs = await documentService.getDocuments(userEmail);
           setDocuments(docs);
         } catch (error) {
@@ -24,15 +22,12 @@ const Sidebar: React.FC = () => {
     };
 
     fetchDocuments();
-  }, []);
+  }, [userEmail]);
 
-  const handleDocumentClick = (email: string, s3Key: string) => {
-    console.log('Document clicked:', { email, s3Key });
-  };
   return (
-    <div className="w-64 h-screen bg-black p-4 fixed left-0 top-0 pt-16">
+    <div className="w-64 h-[calc(100vh-5rem)] bg-black p-4">
       <h2 className="text-xl font-bold text-purple-400 mb-4">Your Documents</h2>
-      <div className="space-y-2">
+      <div className="space-y-2 overflow-y-auto h-full">
         {documents.map((doc) => (
           <DocumentCard
             key={doc.s3_key}
