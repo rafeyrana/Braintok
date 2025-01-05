@@ -112,17 +112,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
 
           <div className="document-container bg-gray-900/50 rounded-lg w-full h-[calc(100vh-200px)]">
             <div className="pdf-content h-full overflow-auto">
-              <Document
-                file={file}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={onDocumentLoadError}
-                loading={
-                  <div className="text-white p-4 bg-gray-800/50 rounded-lg text-center">
-                    Loading document...
-                  </div>
-                }
-              >
-                <div className="flex justify-center min-h-full p-4" onMouseUp={handleTextSelection}>
+              <div className="min-w-full min-h-full flex items-center justify-center p-4" onMouseUp={handleTextSelection}>
+                <Document
+                  file={file}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  loading={
+                    <div className="text-white p-4 bg-gray-800/50 rounded-lg text-center">
+                      Loading document...
+                    </div>
+                  }
+                >
                   <Page
                     key={`page_${currentPage}_${scale}`}
                     pageNumber={currentPage}
@@ -130,8 +130,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
                   />
-                </div>
-              </Document>
+                </Document>
+              </div>
             </div>
           </div>
         </>
