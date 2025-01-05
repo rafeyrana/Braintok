@@ -62,10 +62,7 @@ class S3Service {
         Bucket: this.bucketName,
         Key: s3Key,
         ContentType: fileType,
-        ACL: 'private',
-        Metadata: {
-          'x-amz-acl': 'private'
-        }
+        ACL: 'private'
       });
 
       // Generate presigned URL with longer expiration

@@ -136,7 +136,6 @@ export class DocumentController {
   async getDocumentAccessLinkByS3Key(req: any, res: any) {
     try {
       const { s3Key } = req.query;
-      console.log('s3Key', s3Key);
       if (!s3Key || typeof s3Key !== 'string') {
         return res.status(400).json({ error: 'Valid s3Key is required' });
       }
@@ -145,12 +144,10 @@ export class DocumentController {
         Bucket: s3Service.bucketName,
         Key: s3Key
       });
-      console.log('command', command);
 
       const presignedUrl = await getSignedUrl(s3Service.s3Client, command, {
         expiresIn: 300 // 5 minutes in seconds
       });
-      console.log('presignedUrl', presignedUrl);
       logInfo('Generated document access link', { s3Key });
       res.json({ presignedUrl });
       

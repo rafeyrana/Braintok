@@ -1,3 +1,4 @@
+import axios from 'axios';
 import axiosInstance from '../lib/axios';
 import {
   DocumentUploadResponse,
@@ -44,7 +45,7 @@ export class DocumentService {
     onProgress?: (progress: number) => void
   ): Promise<void> {
     try {
-      await axiosInstance.put(presignedUrl, file, {
+      await axios.put(presignedUrl, file, {
         headers: {
           'Content-Type': file.type
         },
