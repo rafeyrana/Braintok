@@ -1,7 +1,8 @@
-import axios from 'axios';
+import axiosInstance from '../lib/axios';
+
 export const deleteFileByS3Key = async (email: string, s3Key: string): Promise<any> => {
     try {
-        const response = await axios.delete(`${process.env.REACT_APP_API_URL}/documents/delete-document-by-s3-key`, {
+        const response = await axiosInstance.delete('/documents/delete-document-by-s3-key', {
             params: {
                 email,
                 s3Key

@@ -12,7 +12,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-purple-400 text-xl">Loading...</div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -28,8 +32,11 @@ function App() {
       <AuthProvider>
         <Router>
           <Routes>
+            {/* Public routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
+
+            {/* Protected routes */}
             <Route
               path="/home"
               element={
@@ -38,7 +45,17 @@ function App() {
                 </PrivateRoute>
               }
             />
-            <Route path="/document-chat/:s3Key" element={<DocumentChat />} />
+            <Route
+              path="/document-chat/:s3Key"
+              element={
+                <PrivateRoute>
+                  <DocumentChat />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </AuthProvider>

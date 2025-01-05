@@ -1,3 +1,5 @@
+import axiosInstance from '../lib/axios';
+
 interface WaitListData {
   email: string;
   name: string;
@@ -7,20 +9,13 @@ interface WaitListData {
 
 export const handleWaitList = async (data: WaitListData): Promise<void> => {
   try {
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/waitlist/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data)
-    });
+    const response = await axiosInstance.post('/waitlist/submit', data);
 
-    if (!response.ok) {
+    if (!response.data.success) {
       throw new Error('Failed to submit waitlist entry');
     }
 
-    const result = await response.json();
-    console.log('Waitlist submission successful:', result);
+    console.log('Waitlist submission successful:', response.data);
   } catch (error) {
     console.error('Error submitting to waitlist:', error);
     throw error;

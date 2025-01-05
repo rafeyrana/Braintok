@@ -1,13 +1,10 @@
-import axios from 'axios';
+import axiosInstance from '../lib/axios';
 import {
   DocumentUploadResponse,
   UploadCompletion,
   UploadProgress,
   Document,
-  UploadFile
 } from '../types/documents';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
 
 class DocumentUploadError extends Error {
   constructor(
@@ -23,19 +20,7 @@ class DocumentUploadError extends Error {
 export class DocumentService {
   private async requestPresignedUrls(files: File[], email: string): Promise<DocumentUploadResponse> {
     try {
-      console.log('Requesting presigned URLs with:', {
-        url: `${API_BASE_URL}/documents/request-upload`,
-        payload: {
-          files: files.map(file => ({
-            filename: file.name,
-            fileType: file.type,
-            size: file.size
-          })),
-          email
-        }
-      });
-      
-      const response = await axios.post(`${API_BASE_URL}/documents/request-upload`, {
+      const response = await axiosInstance.post('/documents/request-upload', {
         files: files.map(file => ({
           filename: file.name,
           fileType: file.type,
@@ -59,7 +44,7 @@ export class DocumentService {
     onProgress?: (progress: number) => void
   ): Promise<void> {
     try {
-      await axios.put(presignedUrl, file, {
+      await axiosInstance.put(presignedUrl, file, {
         headers: {
           'Content-Type': file.type
         },
@@ -82,12 +67,7 @@ export class DocumentService {
 
   private async confirmUpload(completion: UploadCompletion): Promise<void> {
     try {
-      console.log('Confirming upload with:', {
-        url: `${API_BASE_URL}/documents/confirm-upload`,
-        payload: completion
-      });
-      
-      await axios.post(`${API_BASE_URL}/documents/confirm-upload`, completion);
+      await axiosInstance.post('/documents/confirm-upload', completion);
     } catch (error) {
       console.error('Error confirming upload:', error);
       throw new DocumentUploadError(
@@ -103,10 +83,8 @@ export class DocumentService {
     onProgress?: (progress: UploadProgress) => void
   ): Promise<void> {
     try {
-      // 1. Request presigned URLs
       const { uploads } = await this.requestPresignedUrls(files, email);
 
-      // 2. Upload files to S3
       const uploadResults = await Promise.all(
         uploads.map(async (upload, index) => {
           const file = files[index];
@@ -143,7 +121,6 @@ export class DocumentService {
         })
       );
 
-      // 3. Confirm upload with backend
       await this.confirmUpload({
         documents: uploadResults,
         email
@@ -161,12 +138,7 @@ export class DocumentService {
 
   async getDocuments(email: string): Promise<Document[]> {
     try {
-      console.log('Fetching documents with:', {
-        url: `${API_BASE_URL}/documents/get-documents-by-email`,
-        params: { email }
-      });
-      
-      const response = await axios.get(`${API_BASE_URL}/documents/get-documents-by-email`, {
+      const response = await axiosInstance.get('/documents/get-documents-by-email', {
         params: { email }
       });
       return response.data;
@@ -180,7 +152,7 @@ export class DocumentService {
   }
 
   async getDocumentAccessLinkByS3Key(s3Key: string): Promise<string> {
-    const response = await axios.get(`${API_BASE_URL}/documents/get-document-access-link`, {
+    const response = await axiosInstance.get('/documents/get-document-access-link', {
       params: { s3Key }
     });
     return response.data.presignedUrl;
