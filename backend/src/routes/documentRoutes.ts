@@ -15,4 +15,8 @@ router.get('/get-documents-by-email', documentController.getDocuments);
 router.get('/get-document-access-link', documentController.getDocumentAccessLinkByS3Key);
 
 
+
+// a route to delete a document by s3 key
+router.delete('/delete-document-by-s3-key', documentController.deleteDocumentByS3Key);
+
 export default router;

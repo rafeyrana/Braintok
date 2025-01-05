@@ -159,6 +159,30 @@ export class DocumentController {
       res.status(500).json({ error: 'Failed to generate document access link' });
     }
   }
+
+  async deleteDocumentByS3Key(req: any, res: any){
+    try{
+      let s3Key = req.query.s3Key;
+      let email = req.query.email;
+      if (!s3Key || typeof s3Key !== 'string') {
+        console.log('s3Key is required when deleting');
+        return res.status(400).json({ error: 'Valid s3Key is required' });
+      }
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: 'Valid email is required' });
+      }
+
+      await s3Service.deleteFile(s3Key);
+      await documentService.deleteDocumentByS3Key(email, s3Key);
+      logInfo('Document deleted successfully', { s3Key });
+      console.log('Document deleted successfully', s3Key, email);
+      res.json({ message: 'Document deleted successfully' });
+
+    } catch (error: any) {
+      logError('Error in deleteDocumentByS3Key', error, { query: req.query });
+      res.status(500).json({ error: 'Failed to delete document' });
+    }
+  }
 }
 
 export const documentController = new DocumentController();

@@ -4,7 +4,7 @@ import DocumentCard from '../DocumentCard/DocumentCard';
 import { Document } from '../../types/documents';
 import { useAppSelector } from '../../store/hooks';
 import { selectUserEmail } from '../../store/slices/userSlice';
-
+import { deleteFileByS3Key } from '../../api/deleteFileByS3Key';
 const Sidebar: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -29,10 +29,15 @@ const Sidebar: React.FC = () => {
     setIsCollapsed(!isCollapsed);
   };
 
-  const handleDeleteDocument = (s3Key: string) => {
-    console.log('Deleting document with s3Key:', s3Key);
-    // Remove from local state immediately
-    setDocuments(prevDocs => prevDocs.filter(doc => doc.s3_key !== s3Key));
+  const handleDeleteDocument = async (s3Key: string) => {
+    try {
+      console.log('Deleting document with s3Key:', s3Key);
+      const response = await deleteFileByS3Key(userEmail || "", s3Key);
+      console.log('Response:', response);
+      setDocuments(prevDocs => prevDocs.filter(doc => doc.s3_key !== s3Key));
+    } catch (error) {
+      console.error('Failed to delete document:', error);
+    }
   };
 
   return (

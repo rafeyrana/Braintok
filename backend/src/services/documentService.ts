@@ -121,6 +121,14 @@ class DocumentService {
     }
   }
 
+  async deleteDocumentByS3Key(email: string, s3Key: string): Promise<void> {
+    try {
+      await this.supabase.from('documents').delete().eq('user_email', email).eq('s3_key', s3Key);
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw new Error('Failed to delete document');
+    }
+  }
 }
 
 export const documentService = new DocumentService();
