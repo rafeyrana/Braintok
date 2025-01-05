@@ -29,6 +29,12 @@ const Sidebar: React.FC = () => {
     setIsCollapsed(!isCollapsed);
   };
 
+  const handleDeleteDocument = (s3Key: string) => {
+    console.log('Deleting document with s3Key:', s3Key);
+    // Remove from local state immediately
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.s3_key !== s3Key));
+  };
+
   return (
     <>
       {isCollapsed ? (
@@ -62,6 +68,7 @@ const Sidebar: React.FC = () => {
                 name={doc.filename}
                 s3Key={doc.s3_key}
                 email={userEmail || ''}
+                onDelete={handleDeleteDocument}
               />
             ))}
           </div>

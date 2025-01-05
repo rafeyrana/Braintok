@@ -54,6 +54,7 @@ const DocumentChat: React.FC = () => {
   const pdfViewerKey = documentDetails?.presignedUrl || 'no-url';
 
   return (
+    <div className = "p-4">
     <div className="flex flex-col min-h-screen bg-black">
       <Navbar />
       
@@ -80,6 +81,7 @@ const DocumentChat: React.FC = () => {
           ) : null}
         </div>
       </div>
+    </div>
     </div>
   );
 };
