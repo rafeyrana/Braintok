@@ -32,7 +32,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setError(null);
-    setCurrentPage(1); // Reset to first page when new document loads
+    setCurrentPage(1);
   };
 
   const onDocumentLoadError = (error: Error) => {
@@ -51,79 +51,88 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
     setNumPages(0);
   };
 
-
   const handleTextSelection = () => {
     const selection = window.getSelection();
     if (selection) {
-      const selectedText = selection.toString().trim();
-      console.log("selectedText: ", selectedText);
-      setSelectedText(selectedText);
-      if (onTextSelect) {
-        onTextSelect(selectedText);
+      const text = selection.toString().trim();
+      if (text && text !== selectedText) {
+        setSelectedText(text);
+        onTextSelect?.(text);
       }
     }
   };
 
   return (
-    <div className="pdf-viewer flex flex-col gap-4">
+    <div className="pdf-viewer flex flex-col gap-4 w-[800px]">
       {error ? (
-        <div className="error-message text-red-500">{error}</div>
+        <div className="error-message text-red-500 p-4 bg-red-100/10 rounded-lg text-center">
+          {error}
+        </div>
       ) : (
         <>
-          {/* Controls */}
-          <div className="controls flex justify-between items-center bg-gray-800 p-4 rounded">
-            <div className="pagination flex items-center gap-4">
-              <button
-                className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage <= 1}
-              >
-                Previous
-              </button>
-              <span className="text-white">
-                Page {currentPage} of {numPages}
-              </span>
-              <button
-                className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
-                onClick={() => setCurrentPage(prev => Math.min(numPages, prev + 1))}
-                disabled={currentPage >= numPages}
-              >
-                Next
-              </button>
-            </div>
-            
-            <div className="zoom flex items-center gap-4">
-              <button
-                className="bg-purple-500 px-4 py-2 rounded"
-                onClick={() => setScale(prev => Math.max(0.5, prev - 0.1))}
-              >
-                -
-              </button>
-              <span className="text-white">{Math.round(scale * 100)}%</span>
-              <button
-                className="bg-purple-500 px-4 py-2 rounded"
-                onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
-              >
-                +
-              </button>
+          <div className="controls bg-gray-800 p-4 rounded w-full">
+            <div className="flex justify-between items-center">
+              <div className="pagination flex items-center gap-4">
+                <button
+                  className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Previous
+                </button>
+                <span className="text-white">
+                  Page {currentPage} of {numPages}
+                </span>
+                <button
+                  className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
+                  onClick={() => setCurrentPage(prev => Math.min(numPages, prev + 1))}
+                  disabled={currentPage >= numPages}
+                >
+                  Next
+                </button>
+              </div>
+              
+              <div className="zoom flex items-center gap-4">
+                <button
+                  className="bg-purple-500 px-4 py-2 rounded"
+                  onClick={() => setScale(prev => Math.max(0.5, prev - 0.1))}
+                >
+                  -
+                </button>
+                <span className="text-white">{Math.round(scale * 100)}%</span>
+                <button
+                  className="bg-purple-500 px-4 py-2 rounded"
+                  onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* PDF Document */}
-          <div className="document-container overflow-auto max-h-[calc(100vh-200px)]" onMouseUp={handleTextSelection}>
-            <Document
-              file={file}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={onDocumentLoadError}
-              loading={<div className="text-white">Loading document...</div>}
-            >
-              <Page
-                pageNumber={currentPage}
-                scale={scale}
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
-              />
-            </Document>
+          <div className="document-container bg-gray-900/50 rounded-lg w-full h-[calc(100vh-200px)]">
+            <div className="pdf-content h-full overflow-auto">
+              <Document
+                file={file}
+                onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={onDocumentLoadError}
+                loading={
+                  <div className="text-white p-4 bg-gray-800/50 rounded-lg text-center">
+                    Loading document...
+                  </div>
+                }
+              >
+                <div className="flex justify-center min-h-full p-4" onMouseUp={handleTextSelection}>
+                  <Page
+                    key={`page_${currentPage}_${scale}`}
+                    pageNumber={currentPage}
+                    scale={scale}
+                    renderTextLayer={true}
+                    renderAnnotationLayer={true}
+                  />
+                </div>
+              </Document>
+            </div>
           </div>
         </>
       )}

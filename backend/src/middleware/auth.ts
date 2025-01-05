@@ -8,7 +8,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     if (!token) {
       return res.status(401).json({ error: 'Access token is required' });
     }
-    const secret = process.env.SUPABASE_JWT_SECRET;
     try {
       const decoded = jwt.decode(token, { complete: true });
       const verified = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!);

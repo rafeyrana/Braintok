@@ -18,7 +18,6 @@ const DocumentChat: React.FC = () => {
 
   useEffect(() => {
     const fetchDocumentDetails = async () => {
-      // Reset states when fetching new document
       setError(null);
       setIsLoading(true);
       setDocumentDetails(null);
@@ -44,44 +43,47 @@ const DocumentChat: React.FC = () => {
     };
 
     fetchDocumentDetails();
-  }, [s3Key]); // Only re-run when s3Key changes
+  }, [s3Key]);
 
   const handleTextSelect = (text: string) => {
     setSelectedText(prev => [...prev, text]);
   };
 
-  // Key prop added to force PDFViewer remount when URL changes
   const pdfViewerKey = documentDetails?.presignedUrl || 'no-url';
 
   return (
-    <div className = "p-4">
     <div className="flex flex-col min-h-screen bg-black">
       <Navbar />
       
       <div className="flex mt-20">
         <Sidebar />
 
-        <div className="flex-1 p-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-purple-400">Loading...</div>
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-red-400">Error: {error}</div>
-            </div>
-          ) : documentDetails?.presignedUrl ? (
-            <div className="w-full">
+        <div className="flex flex-1 gap-6 p-6">
+          {/* Left side - PDF Viewer */}
+          <div className="flex-none">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64 w-[800px]">
+                <div className="text-purple-400">Loading...</div>
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center h-64 w-[800px]">
+                <div className="text-red-400">Error: {error}</div>
+              </div>
+            ) : documentDetails?.presignedUrl ? (
               <PDFViewer 
                 key={pdfViewerKey}
                 url={documentDetails.presignedUrl} 
                 onTextSelect={handleTextSelect}
               />
-            </div>
-          ) : null}
+            ) : null}
+          </div>
+
+          {/* Right side - Future Component */}
+          <div className="flex-1 bg-gray-900/50 rounded-lg">
+            {/* Your future component will go here */}
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };
