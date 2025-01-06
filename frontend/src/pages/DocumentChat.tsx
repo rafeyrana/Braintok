@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import Navbar from '../Components/Navbar';
 import Sidebar from '../Components/Sidebar';
 import PDFViewer from '../Components/PDFViewer/PDFViewer';
+import ChatBot from '../Components/ChatBot';
 import { documentService } from '../services/documentService';
 
 interface DocumentDetails {
@@ -78,9 +79,9 @@ const DocumentChat: React.FC = () => {
             ) : null}
           </div>
 
-          {/* Right side - Future Component */}
+          {/* Right side - Chat Component */}
           <div className="flex-1 bg-gray-900/50 rounded-lg">
-            {/* Your future component will go here */}
+            <ChatBot />
           </div>
         </div>
       </div>

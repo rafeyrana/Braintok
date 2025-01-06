@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
 import { requestLogger } from './middleware/requestLogger';
 import logger from './utils/logger';
 import fs from 'fs';
 import path from 'path';
+import { initializeSocketServer } from './socket/socketServer';
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../logs');
@@ -12,6 +14,10 @@ if (!fs.existsSync(logsDir)) {
 }
 
 const app = express();
+const httpServer = createServer(app);
+
+// Initialize Socket.io
+initializeSocketServer(httpServer);
 
 // Middleware
 app.use(cors());
@@ -48,7 +54,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
 });
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import axiosInstance from '../lib/axios';
+import axiosInstance from '../lib/axios'
 import {
   DocumentUploadResponse,
   UploadCompletion,
