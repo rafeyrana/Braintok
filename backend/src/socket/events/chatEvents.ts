@@ -23,7 +23,7 @@ export const handleConnection = (socket: AuthenticatedSocket) => {
       };
      console.log('message', message);
       // TODO: Save message to database
-      
+      message.content = 'test';
       // Send message back to user
       socket.emit('chatMessage', message);
       

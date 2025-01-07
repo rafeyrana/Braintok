@@ -1,19 +1,26 @@
 import express from 'express';
 import cors from 'cors';
+import { createServer } from 'http';
 import dotenv from 'dotenv';
 import waitlistRoutes from './routes/waitlist.routes';
 import documentRoutes from './routes/documentRoutes';
+import { requestLogger } from './middleware/requestLogger';
+import { initializeSocketServer } from './socket/socketServer';
+import logger from './utils/logger';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5001;
+const httpServer = createServer(app);
 
+// Initialize Socket.io
+initializeSocketServer(httpServer);
 
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.VERCEL_URL || ""], // Allow both ports
+  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.VERCEL_URL || ''],
   credentials: true
 }));
+
 app.use(express.json());
 
 // Request logging middleware
@@ -37,9 +44,11 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-  console.log(`API available at http://localhost:${port}/api`);
+const PORT = process.env.PORT || 5001;
+
+httpServer.listen(PORT, () => {
+  logger.info(`Server running on port ${PORT}`);
+  logger.info(`Socket.IO server available at ws://localhost:${PORT}`);
 });
 
 export default app;

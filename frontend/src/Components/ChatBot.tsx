@@ -23,28 +23,48 @@ const ChatBot: React.FC = () => {
   }, [messages]);
 
   useEffect(() => {
-    // Setup socket event handlers
-    const messageUnsubscribe = socketService.onMessage((message: ChatMessage) => {
-      setMessages(prev => [...prev, { content: message.content, isUser: false }]);
-    });
+    let messageUnsubscribe: (() => void) | undefined;
+    let errorUnsubscribe: (() => void) | undefined;
+    let connectUnsubscribe: (() => void) | undefined;
 
-    const errorUnsubscribe = socketService.onError((errorMessage: string) => {
-      setError(errorMessage);
-      setIsLoading(false);
-    });
+    const initializeSocket = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Initialize socket connection
+        await socketService.initialize();
 
-    const connectUnsubscribe = socketService.onConnect(() => {
-      setIsLoading(false);
-      setError(null);
-    });
+        // Setup socket event handlers
+        messageUnsubscribe = socketService.onMessage((message: ChatMessage) => {
+          setMessages(prev => [...prev, { content: message.content, isUser: false }]);
+        });
 
-    // Cleanup
-    return () => {
-      messageUnsubscribe();
-      errorUnsubscribe();
-      connectUnsubscribe();
+        errorUnsubscribe = socketService.onError((errorMessage: string) => {
+          setError(errorMessage);
+          setIsLoading(false);
+        });
+
+        connectUnsubscribe = socketService.onConnect(() => {
+          setIsLoading(false);
+          setError(null);
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to initialize chat');
+        setIsLoading(false);
+      }
     };
-  }, []);
+
+    initializeSocket();
+
+    // Cleanup function
+    return () => {
+      if (messageUnsubscribe) messageUnsubscribe();
+      if (errorUnsubscribe) errorUnsubscribe();
+      if (connectUnsubscribe) connectUnsubscribe();
+      socketService.disconnect();
+    };
+  }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();

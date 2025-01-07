@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { ChatMessage } from '../types/socket.types';
+import { supabase } from '../lib/supabase';
 
 class SocketService {
   private socket: Socket | null = null;
@@ -7,22 +8,46 @@ class SocketService {
   private errorHandlers: ((error: string) => void)[] = [];
   private connectionHandlers: (() => void)[] = [];
 
-  constructor() {
-    this.initialize();
-  }
+  public async initialize() {
+    if (this.socket) {
+      console.warn('Socket connection already exists');
+      return;
+    }
 
-  private initialize() {
     const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5001';
+    
+    console.log('Initializing socket connection to:', SOCKET_URL);
+
+    // Get the current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('No authentication token available');
+    }
     
     this.socket = io(SOCKET_URL, {
       auth: {
-        token: localStorage.getItem(`${process.env.SUPABASE_PROJ_NAME}-auth-token`) 
-      }
+        token: `Bearer ${session.access_token}`
+      },
+      withCredentials: true,
+      transports: ['polling', 'websocket'], 
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
     });
+
+    this.setupEventHandlers();
+  }
+
+  private setupEventHandlers() {
+    if (!this.socket) return;
 
     this.socket.on('connect', () => {
       console.log('Connected to socket server');
       this.connectionHandlers.forEach(handler => handler());
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('Disconnected from socket server:', reason);
     });
 
     this.socket.on('chatMessage', (message: ChatMessage) => {
@@ -37,7 +62,20 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('Connection error:', error);
-      this.errorHandlers.forEach(handler => handler('Failed to connect to server'));
+      this.errorHandlers.forEach(handler => 
+        handler(`Failed to connect to server: ${error.message}`)
+      );
+    });
+
+    this.socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`Attempting to reconnect... (attempt ${attemptNumber})`);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('Failed to reconnect after all attempts');
+      this.errorHandlers.forEach(handler => 
+        handler('Failed to reconnect after multiple attempts')
+      );
     });
   }
 
@@ -70,7 +108,13 @@ class SocketService {
   }
 
   public disconnect() {
-    this.socket?.disconnect();
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+      this.messageHandlers = [];
+      this.errorHandlers = [];
+      this.connectionHandlers = [];
+    }
   }
 }
 
