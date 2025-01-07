@@ -5,6 +5,8 @@ import Sidebar from '../Components/Sidebar';
 import PDFViewer from '../Components/PDFViewer/PDFViewer';
 import ChatBot from '../Components/ChatBot';
 import { documentService } from '../services/documentService';
+import { useAppSelector } from '../store/hooks';
+import { selectUserEmail } from '../store/slices/userSlice';
 
 interface DocumentDetails {
   presignedUrl: string;
@@ -16,6 +18,7 @@ const DocumentChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState<string[]>([]);
+  const userEmail = useAppSelector(selectUserEmail);
 
   useEffect(() => {
     const fetchDocumentDetails = async () => {
@@ -81,7 +84,12 @@ const DocumentChat: React.FC = () => {
 
           {/* Right side - Chat Component */}
           <div className="flex-1 bg-gray-900/50 rounded-lg">
-            <ChatBot />
+            {userEmail && s3Key ? (
+              <ChatBot 
+                userEmail={userEmail}
+                documentS3Key={s3Key}
+              />
+            ) : null}
           </div>
         </div>
       </div>

@@ -2,12 +2,15 @@ import { Socket } from 'socket.io';
 
 export interface AuthenticatedSocket extends Socket {
   userId: string;
+  userEmail: string;
+  s3Key: string;
 }
 
 export interface ChatMessage {
   content: string;
   timestamp: number;
   userId: string;
+  isUser: boolean
 }
 
 export interface ServerToClientEvents {

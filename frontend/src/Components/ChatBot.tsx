@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { socketService } from '../services/socketService';
-import { ChatMessage } from '../types/socket.types';
+import { ChatMessage, SocketInitParams } from '../types/socket.types';
+import { fetchPreviousMessages } from '../api/chatbotMessages';
 
-interface Message {
-  content: string;
-  isUser: boolean;
+interface ChatBotProps {
+  userEmail: string;
+  documentS3Key: string;
 }
 
-const ChatBot: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -32,12 +34,15 @@ const ChatBot: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
-        // Initialize socket connection
-        await socketService.initialize();
+        const initParams: SocketInitParams = {
+          userEmail,
+          documentS3Key
+        };
+        
+        await socketService.initialize(initParams);
 
-        // Setup socket event handlers
         messageUnsubscribe = socketService.onMessage((message: ChatMessage) => {
-          setMessages(prev => [...prev, { content: message.content, isUser: false }]);
+          setMessages(prev => [...prev, message]);
         });
 
         errorUnsubscribe = socketService.onError((errorMessage: string) => {
@@ -55,28 +60,48 @@ const ChatBot: React.FC = () => {
       }
     };
 
-    initializeSocket();
+    const loadPreviousMessages = async () => {
+      try {
+        setIsLoadingHistory(true);
+        const previousMessages = await fetchPreviousMessages(userEmail, documentS3Key);
+        setMessages(previousMessages);
+      } catch (err) {
+        console.error('Error loading previous messages:', err);
+        // Don't set error state here as it might interfere with socket connection status
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
 
-    // Cleanup function
+    // Initialize both in parallel
+    Promise.all([
+      initializeSocket(),
+      loadPreviousMessages()
+    ]).catch(err => {
+      console.error('Error during initialization:', err);
+    });
+
     return () => {
       if (messageUnsubscribe) messageUnsubscribe();
       if (errorUnsubscribe) errorUnsubscribe();
       if (connectUnsubscribe) connectUnsubscribe();
       socketService.disconnect();
     };
-  }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
+  }, [userEmail, documentS3Key]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (inputMessage.trim()) {
       try {
-        // Add user message to state immediately
-        setMessages(prev => [...prev, { content: inputMessage, isUser: true }]);
+        const newMessage: ChatMessage = {
+          content: inputMessage,
+          timestamp: Date.now(),
+          userId: userEmail,
+          isUser: true
+        };
         
-        // Send message through socket
+        setMessages(prev => [...prev, newMessage]);
         await socketService.sendMessage(inputMessage);
-        
-        // Clear input
         setInputMessage('');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to send message');
@@ -110,6 +135,11 @@ const ChatBot: React.FC = () => {
           </div>
         ) : (
           <>
+            {isLoadingHistory && (
+              <div className="flex justify-center items-center py-2">
+                <div className="text-purple-400">Loading previous messages...</div>
+              </div>
+            )}
             {messages.map((message, index) => (
               <div
                 key={index}

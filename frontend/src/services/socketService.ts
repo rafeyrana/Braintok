@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { ChatMessage } from '../types/socket.types';
+import { ChatMessage, SocketInitParams } from '../types/socket.types';
 import { supabase } from '../lib/supabase';
 
 class SocketService {
@@ -8,7 +8,7 @@ class SocketService {
   private errorHandlers: ((error: string) => void)[] = [];
   private connectionHandlers: (() => void)[] = [];
 
-  public async initialize() {
+  public async initialize(params: SocketInitParams) {
     if (this.socket) {
       console.warn('Socket connection already exists');
       return;
@@ -25,6 +25,10 @@ class SocketService {
     }
     
     this.socket = io(SOCKET_URL, {
+      query: {
+        userEmail: params.userEmail,
+        s3Key: params.documentS3Key
+      },
       auth: {
         token: `Bearer ${session.access_token}`
       },

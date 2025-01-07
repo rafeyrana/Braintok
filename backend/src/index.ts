@@ -7,6 +7,7 @@ import documentRoutes from './routes/documentRoutes';
 import { requestLogger } from './middleware/requestLogger';
 import { initializeSocketServer } from './socket/socketServer';
 import logger from './utils/logger';
+import messageRoutes from './routes/messageRoutes';
 
 dotenv.config();
 
@@ -32,6 +33,8 @@ app.use((req, res, next) => {
 // Mount routes
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/messages', messageRoutes);
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
