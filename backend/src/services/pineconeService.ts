@@ -1,5 +1,7 @@
 import { Pinecone, Index, PineconeConfiguration } from '@pinecone-database/pinecone';
-
+import * as pdfjsLib from 'pdfjs-dist';
+import { logInfo, logError, logDebug } from '../utils/logger';
+import { s3Service } from './s3Service';
 interface PineconeIndexConfig {
   dimension: number;
   metric?: 'euclidean' | 'cosine' | 'dotproduct';
@@ -100,12 +102,151 @@ export class PineconeService {
     return PineconeService.instance;
   }
 
+  private async extractTextFromPDF(buffer: Buffer): Promise<string> {
+    try {
+      logDebug('Starting PDF text extraction');
+      
+      const pdf = await pdfjsLib.getDocument(buffer).promise;
+      const maxPages = pdf.numPages;
+      const pageTextPromises = [];
+
+      // Extract text from each page
+      for (let pageNo = 1; pageNo <= maxPages; pageNo++) {
+        pageTextPromises.push(this.extractPageText(pdf, pageNo));
+      }
+
+      const pageTexts = await Promise.all(pageTextPromises);
+      const fullText = pageTexts.join(' ');
+
+      logInfo('PDF text extraction completed', { 
+        pageCount: maxPages,
+        textLength: fullText.length 
+      });
+
+      return fullText;
+    } catch (error) {
+      logError('Error extracting text from PDF', error as Error);
+      throw new Error('Failed to extract text from PDF');
+    }
+  }
+
+  private async extractPageText(pdf: any, pageNo: number): Promise<string> {
+    try {
+      const page = await pdf.getPage(pageNo);
+      const tokenizedText = await page.getTextContent();
+      const pageText = tokenizedText.items
+        .map((token: any) => token.str)
+        .join(' ');
+
+      logDebug('Extracted text from page', { pageNo, textLength: pageText.length });
+      return pageText;
+    } catch (error) {
+      logError('Error extracting page text', error as Error, { pageNo });
+      throw error;
+    }
+  }
+
+  private chunkText(text: string, chunkSize: number = 1024, overlap: number = 256): string[] {
+    const chunks: string[] = [];
+    let startIndex = 0;
+
+    while (startIndex < text.length) {
+      const endIndex = Math.min(startIndex + chunkSize, text.length);
+      chunks.push(text.slice(startIndex, endIndex));
+      startIndex = endIndex - overlap;
+    }
+
+    return chunks;
+  }
+
+  private chunks<T>(array: T[], batchSize: number = 200): T[][] {
+    const batches: T[][] = [];
+    for (let i = 0; i < array.length; i += batchSize) {
+      batches.push(array.slice(i, i + batchSize));
+    }
+    return batches;
+  }
+
   public async insertDocument(s3Key: string, userEmail: string): Promise<void> {
     try {
+      logInfo('Starting document insertion process', { s3Key, userEmail });
+
+      logDebug('Fetching PDF from S3', { s3Key });
+      const pdfBuffer = await s3Service.getObjectContent(s3Key).catch(error => {
+        logError('Failed to fetch PDF from S3', error, { s3Key });
+        throw new Error('Failed to fetch document from storage');
+      });
+    
+      logDebug('Extracting text from PDF', { s3Key });
+      const documentText = await this.extractTextFromPDF(pdfBuffer);
+      logInfo('Text extraction completed', { 
+        s3Key, 
+        textLength: documentText.length 
+      });
       
-      throw new Error('Not implemented');
+      logDebug('Creating text chunks', { s3Key });
+      const chunks = this.chunkText(documentText);
+      
+      logDebug('Generating embeddings', { s3Key, chunkCount: chunks.length });
+      const model = 'multilingual-e5-large';
+      const embeddings = await this.client.inference.embed(
+        model,
+        chunks,
+        { inputType: 'passage', truncate: 'END' }
+      ).catch(error => {
+        logError('Failed to generate embeddings', error, { s3Key, chunkCount: chunks.length });
+        throw new Error('Failed to generate document embeddings');
+      });
+
+      logDebug('Preparing vectors for upsert', { s3Key });
+      const vectors = chunks.map((chunk, index) => ({
+        id: `${s3Key}_chunk_${index}`,
+        values: Object.values(embeddings[index]),
+        metadata: {
+          s3Key,
+          chunkIndex: index
+        }
+      }));
+
+      const vectorChunks = this.chunks(vectors);
+      
+      try {
+        await Promise.all(
+          vectorChunks.map(async (chunk, batchIndex) => {
+            try {
+              await this.dbIndex.namespace(userEmail).upsert(chunk);
+              logDebug('Batch upsert completed', { 
+                s3Key, 
+                batchIndex, 
+                batchSize: chunk.length 
+              });
+            } catch (error) {
+              logError('Batch upsert failed', error as Error, { 
+                s3Key, 
+                batchIndex, 
+                batchSize: chunk.length 
+              });
+              throw error;
+            }
+          })
+        );
+      } catch (error) {
+        logError('Vector upsert failed', error as Error, { 
+          s3Key, 
+          totalVectors: vectors.length 
+        });
+        throw new Error('Failed to store document vectors');
+      }
+
+      logInfo('Document processing completed successfully', { 
+        s3Key, 
+        userEmail, 
+        textLength: documentText.length,
+        totalVectors: vectors.length,
+        batchCount: vectorChunks.length
+      });
     } catch (error) {
-      console.error('Error inserting document:', error);
+      logError('Document insertion failed', error as Error, { s3Key, userEmail });
       throw error;
     }
   }
