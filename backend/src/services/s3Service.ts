@@ -123,6 +123,40 @@ class S3Service {
       throw error;
     }
   }
+
+  async getObjectContent(s3Key: string): Promise<Buffer> {
+    try {
+      logDebug('Fetching object content from S3', { s3Key });
+
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: s3Key,
+      });
+
+      const response = await this.s3Client.send(command);
+      
+      if (!response.Body) {
+        throw new Error('Empty response body from S3');
+      }
+
+      // Convert the readable stream to a buffer
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.Body as any) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      logInfo('Successfully fetched object content from S3', { 
+        s3Key, 
+        contentLength: buffer.length 
+      });
+
+      return buffer;
+    } catch (error) {
+      logError('Error fetching object content from S3', error as Error, { s3Key });
+      throw new Error('Failed to fetch object content from S3');
+    }
+  }
 }
 
 export const s3Service = new S3Service();

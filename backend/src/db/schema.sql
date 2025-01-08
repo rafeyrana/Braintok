@@ -32,3 +32,14 @@ CREATE POLICY "Users can insert their own documents"
 CREATE POLICY "Users can update their own documents"
     ON documents FOR UPDATE
     USING (auth.jwt() ->> 'email' = user_email);
+
+-- Create document_embeddings table
+CREATE TABLE document_embeddings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID REFERENCES documents(id),
+    embedding_status TEXT NOT NULL DEFAULT 'pending',
+    embedding_provider TEXT NOT NULL,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    error TEXT,
+    UNIQUE(document_id, embedding_provider)
+);
