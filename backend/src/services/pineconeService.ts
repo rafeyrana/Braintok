@@ -1,5 +1,6 @@
 import { Pinecone, Index, PineconeConfiguration } from '@pinecone-database/pinecone';
-import * as pdfjsLib from 'pdfjs-dist';
+import pdfParse from 'pdf-parse';
+
 import { logInfo, logError, logDebug } from '../utils/logger';
 import { s3Service } from './s3Service';
 interface PineconeIndexConfig {
@@ -19,7 +20,7 @@ interface PineconeServiceConfig {
 export class PineconeService {
   static instance: PineconeService;
   private client: Pinecone;
-  private dbIndex: Index;
+  private dbIndex!: Index;
   private readonly indexName: string;
 
   public constructor(config: PineconeServiceConfig) {
@@ -106,57 +107,54 @@ export class PineconeService {
     try {
       logDebug('Starting PDF text extraction');
       
-      const pdf = await pdfjsLib.getDocument(buffer).promise;
-      const maxPages = pdf.numPages;
-      const pageTextPromises = [];
-
-      // Extract text from each page
-      for (let pageNo = 1; pageNo <= maxPages; pageNo++) {
-        pageTextPromises.push(this.extractPageText(pdf, pageNo));
-      }
-
-      const pageTexts = await Promise.all(pageTextPromises);
-      const fullText = pageTexts.join(' ');
+      const data = await pdfParse(buffer);
+      const text = data.text;
 
       logInfo('PDF text extraction completed', { 
-        pageCount: maxPages,
-        textLength: fullText.length 
+        pageCount: data.numpages,
+        textLength: text.length 
       });
 
-      return fullText;
+      return text;
     } catch (error) {
       logError('Error extracting text from PDF', error as Error);
       throw new Error('Failed to extract text from PDF');
     }
   }
 
-  private async extractPageText(pdf: any, pageNo: number): Promise<string> {
+  private chunkText(text: string, chunkSize: number = 512, overlap: number = 128): string[] {
     try {
-      const page = await pdf.getPage(pageNo);
-      const tokenizedText = await page.getTextContent();
-      const pageText = tokenizedText.items
-        .map((token: any) => token.str)
-        .join(' ');
+      logDebug('Starting text chunking', { textLength: text.length });
+      
+      // Calculate total chunks needed
+      const totalChunks = Math.ceil(text.length / (chunkSize - overlap));
+      const chunks: string[] = [];
 
-      logDebug('Extracted text from page', { pageNo, textLength: pageText.length });
-      return pageText;
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * (chunkSize - overlap);
+        const end = Math.min(start + chunkSize, text.length);
+        const chunk = text.slice(start, end);
+        chunks.push(chunk);
+        
+        if (i % 10 === 0) {
+          logDebug('Chunking progress', { 
+            chunksCreated: i + 1, 
+            totalChunks,
+            lastChunkLength: chunk.length 
+          });
+        }
+      }
+
+      logDebug('Text chunking completed', { 
+        totalChunks: chunks.length,
+        averageChunkSize: Math.round(text.length / chunks.length)
+      });
+
+      return chunks;
     } catch (error) {
-      logError('Error extracting page text', error as Error, { pageNo });
-      throw error;
+      logError('Error during text chunking', error as Error, { textLength: text.length });
+      throw new Error('Failed to chunk text');
     }
-  }
-
-  private chunkText(text: string, chunkSize: number = 1024, overlap: number = 256): string[] {
-    const chunks: string[] = [];
-    let startIndex = 0;
-
-    while (startIndex < text.length) {
-      const endIndex = Math.min(startIndex + chunkSize, text.length);
-      chunks.push(text.slice(startIndex, endIndex));
-      startIndex = endIndex - overlap;
-    }
-
-    return chunks;
   }
 
   private chunks<T>(array: T[], batchSize: number = 200): T[][] {
@@ -171,80 +169,62 @@ export class PineconeService {
     try {
       logInfo('Starting document insertion process', { s3Key, userEmail });
 
-      logDebug('Fetching PDF from S3', { s3Key });
-      const pdfBuffer = await s3Service.getObjectContent(s3Key).catch(error => {
-        logError('Failed to fetch PDF from S3', error, { s3Key });
-        throw new Error('Failed to fetch document from storage');
-      });
-    
-      logDebug('Extracting text from PDF', { s3Key });
+      // 1. Fetch and extract text
+      const pdfBuffer = await s3Service.getObjectContent(s3Key);
       const documentText = await this.extractTextFromPDF(pdfBuffer);
       logInfo('Text extraction completed', { 
         s3Key, 
         textLength: documentText.length 
       });
-      
-      logDebug('Creating text chunks', { s3Key });
+
+      // 2. Create chunks
       const chunks = this.chunkText(documentText);
-      
-      logDebug('Generating embeddings', { s3Key, chunkCount: chunks.length });
-      const model = 'multilingual-e5-large';
-      const embeddings = await this.client.inference.embed(
-        model,
-        chunks,
-        { inputType: 'passage', truncate: 'END' }
-      ).catch(error => {
-        logError('Failed to generate embeddings', error, { s3Key, chunkCount: chunks.length });
-        throw new Error('Failed to generate document embeddings');
+      logInfo('Text chunking completed', { 
+        s3Key, 
+        totalChunks: chunks.length 
       });
 
-      logDebug('Preparing vectors for upsert', { s3Key });
-      const vectors = chunks.map((chunk, index) => ({
-        id: `${s3Key}_chunk_${index}`,
-        values: Object.values(embeddings[index]),
-        metadata: {
-          s3Key,
-          chunkIndex: index,
-          content: chunk
-        }
-      }));
-
-      const vectorChunks = this.chunks(vectors);
+      // 3. Generate embeddings and upsert in batches
+      const BATCH_SIZE = 50;
+      const model = 'multilingual-e5-large';
       
-      try {
-        await Promise.all(
-          vectorChunks.map(async (chunk, batchIndex) => {
-            try {
-              await this.dbIndex.namespace(userEmail).upsert(chunk);
-              logDebug('Batch upsert completed', { 
-                s3Key, 
-                batchIndex, 
-                batchSize: chunk.length 
-              });
-            } catch (error) {
-              logError('Batch upsert failed', error as Error, { 
-                s3Key, 
-                batchIndex, 
-                batchSize: chunk.length 
-              });
-              throw error;
-            }
-          })
-        );
-      } catch (error) {
-        logError('Vector upsert failed', error as Error, { 
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
+        logDebug('Processing batch', { 
           s3Key, 
-          totalVectors: vectors.length 
+          batchNumber: Math.floor(i/BATCH_SIZE) + 1,
+          totalBatches: Math.ceil(chunks.length/BATCH_SIZE)
         });
-        throw new Error('Failed to store document vectors');
+        
+        const embeddings = await this.client.inference.embed(
+          model,
+          batchChunks,
+          { inputType: 'passage', truncate: 'END' }
+        );
+
+        const batchVectors = batchChunks.map((chunk, index) => ({
+          id: `${s3Key}_chunk_${i + index}`,
+          values: Object.values(embeddings[index]),
+          metadata: {
+            s3Key,
+            chunkIndex: i + index,
+            content: chunk
+          }
+        }));
+
+        await this.dbIndex.namespace(userEmail).upsert(batchVectors);
+        
+        logDebug('Batch processed and uploaded', { 
+          s3Key, 
+          batchNumber: Math.floor(i/BATCH_SIZE) + 1,
+          chunksProcessed: Math.min(i + BATCH_SIZE, chunks.length)
+        });
       }
 
       logInfo('Document processing completed successfully', { 
         s3Key, 
         userEmail, 
-        textLength: documentText.length,
-        totalVectors: vectors.length,
-        batchCount: vectorChunks.length
+        totalChunks: chunks.length
       });
     } catch (error) {
       logError('Document insertion failed', error as Error, { s3Key, userEmail });
