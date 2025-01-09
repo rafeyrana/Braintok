@@ -17,12 +17,12 @@ interface PineconeServiceConfig {
 }
 
 export class PineconeService {
-  private static instance: PineconeService;
+  static instance: PineconeService;
   private client: Pinecone;
   private dbIndex: Index;
   private readonly indexName: string;
 
-  private constructor(config: PineconeServiceConfig) {
+  public constructor(config: PineconeServiceConfig) {
     try {
       if (!process.env.PINECONE_API_KEY) {
         throw new Error('PINECONE_API_KEY is not set');
@@ -204,7 +204,8 @@ export class PineconeService {
         values: Object.values(embeddings[index]),
         metadata: {
           s3Key,
-          chunkIndex: index
+          chunkIndex: index,
+          content: chunk
         }
       }));
 
@@ -250,23 +251,62 @@ export class PineconeService {
       throw error;
     }
   }
-
-  public async queryDb(s3Key: string, userEmail: string): Promise<any> {
-    try {
-      // TODO: Implement query functionality
-      throw new Error('Not implemented');
-    } catch (error) {
-      console.error('Error querying database:', error);
-      throw error;
-    }
-  }
-
   public async deleteDocument(s3Key: string, userEmail: string): Promise<void> {
     try {
       // TODO: Implement delete functionality
       throw new Error('Not implemented');
     } catch (error) {
       console.error('Error deleting document:', error);
+      throw error;
+    }
+  }
+  
+  public async vectorSearch(
+    query: string,
+    userEmail: string,
+    s3Key: string,
+    topN: number = 3
+  ): Promise<string[]> {
+    try {
+      logInfo('Starting vector search', { userEmail, s3Key, topN });
+
+      // Generate embedding for the query
+      const model = 'multilingual-e5-large';
+      const queryEmbedding = await this.client.inference.embed(
+        model,
+        [query],
+        { inputType: 'query', truncate: 'END' }
+      ).catch(error => {
+        logError('Failed to generate query embedding', error as Error);
+        throw new Error('Failed to process search query');
+      });
+
+      // Search in Pinecone with metadata filter
+      const searchResults = await this.dbIndex.namespace(userEmail).query({
+        vector:  Object.values(queryEmbedding[0]),
+        filter: { s3Key: { $eq: s3Key } },
+        topK: topN,
+        includeMetadata: true
+      });
+
+      // Extract content from metadata
+      const contentResults = searchResults.matches.map(match => 
+        match.metadata?.content as string
+      ).filter(Boolean);
+
+      logInfo('Vector search completed', {
+        userEmail,
+        s3Key,
+        resultsFound: contentResults.length
+      });
+
+      return contentResults;
+    } catch (error) {
+      logError('Vector search failed', error as Error, {
+        userEmail,
+        s3Key,
+        topN
+      });
       throw error;
     }
   }

@@ -1,10 +1,12 @@
 import { AuthenticatedSocket, ChatMessage } from '../types/socket.types';
 import logger from '../../utils/logger';
 import { messagesService } from '../../services/messagesService';
+import RAGService from '../../services/ragService';
 
 const activeConnections = new Map<string, AuthenticatedSocket>();
+const ragInstances = new Map<string, RAGService>();
 
-export const handleConnection = (socket: AuthenticatedSocket) => {
+export const handleConnection = async (socket: AuthenticatedSocket) => {
   const userId = socket.userId;
   const userEmail = socket.handshake.query.userEmail as string;
   const s3Key = socket.handshake.query.s3Key as string;
@@ -12,13 +14,25 @@ export const handleConnection = (socket: AuthenticatedSocket) => {
   socket.userEmail = userEmail;
   socket.s3Key = s3Key;
   
-  // Store the enhanced socket object
-  activeConnections.set(userId, socket);
-  
-  logger.info(`User connected: ${userId}`, {
-    userEmail,
-    s3Key
-  });
+  try {
+    // Initialize RAG service for this connection
+    const rag = new RAGService(s3Key, userEmail);
+    await rag.initialize();
+    ragInstances.set(userId, rag);
+    
+    // Store the socket
+    activeConnections.set(userId, socket);
+    
+    logger.info(`User connected and RAG initialized: ${userId}`, {
+      userEmail,
+      s3Key
+    });
+  } catch (error) {
+    logger.error('Failed to initialize RAG:', error);
+    socket.emit('error', 'Failed to initialize document processing');
+    socket.disconnect();
+    return;
+  }
 
   socket.on('disconnect', () => {
     activeConnections.delete(userId);
@@ -35,10 +49,16 @@ export const handleConnection = (socket: AuthenticatedSocket) => {
             userId,
             isUser: true
           };
-    let response = "this is the response from the backend"
+    
+    const rag = ragInstances.get(userId);
+    if (!rag) {
+      throw new Error('RAG instance not found');
+    }
+    
+    const response = await rag.queryDocument(content);
 
       const backendResponse: ChatMessage = {
-        content: response, 
+        content: response,
         timestamp: Date.now(),
         userId,
         isUser: false
