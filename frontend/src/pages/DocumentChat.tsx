@@ -56,40 +56,51 @@ const DocumentChat: React.FC = () => {
   const pdfViewerKey = documentDetails?.presignedUrl || 'no-url';
 
   return (
-    <div className="flex flex-col min-h-screen bg-black">
+    <div className="flex flex-col h-screen bg-black">
       <Navbar />
       
-      <div className="flex mt-20">
-        <Sidebar />
+      <div className="flex flex-1 mt-20 overflow-hidden">
+        {/* Sidebar - visible by default on desktop */}
+        <div className="hidden lg:block w-64 flex-shrink-0">
+          <Sidebar />
+        </div>
 
-        <div className="flex flex-1 gap-6 p-6">
-          {/* Left side - PDF Viewer */}
-          <div className="flex-none">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64 w-[800px]">
-                <div className="text-purple-400">Loading...</div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-64 w-[800px]">
-                <div className="text-red-400">Error: {error}</div>
-              </div>
-            ) : documentDetails?.presignedUrl ? (
-              <PDFViewer 
-                key={pdfViewerKey}
-                url={documentDetails.presignedUrl} 
-                onTextSelect={handleTextSelect}
-              />
-            ) : null}
-          </div>
+        {/* Main content area with PDF and Chat side by side */}
+        <div className="flex-1 p-2 sm:p-4 lg:p-6 overflow-hidden">
+          {/* Flex container for PDF and Chat */}
+          <div className="flex flex-col lg:flex-row gap-4 h-full">
+            {/* PDF Viewer container */}
+            <div className="flex-1 lg:w-2/3 min-h-0 order-1">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-purple-400">Loading...</div>
+                </div>
+              ) : error ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-red-400">Error: {error}</div>
+                </div>
+              ) : documentDetails?.presignedUrl ? (
+                <div className="w-full h-full overflow-auto">
+                  <div className="w-full max-w-[1000px] mx-auto">
+                    <PDFViewer 
+                      key={pdfViewerKey}
+                      url={documentDetails.presignedUrl} 
+                      onTextSelect={handleTextSelect}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
-          {/* Right side - Chat Component */}
-          <div className="flex-1 bg-gray-900/50 rounded-lg">
-            {userEmail && s3Key ? (
-              <ChatBot 
-                userEmail={userEmail}
-                documentS3Key={s3Key}
-              />
-            ) : null}
+            {/* Chat container */}
+            <div className="flex-1 lg:w-1/3 lg:max-w-[400px] min-h-0 bg-gray-900/50 rounded-lg overflow-hidden order-2">
+              {userEmail && s3Key ? (
+                <ChatBot 
+                  userEmail={userEmail}
+                  documentS3Key={s3Key}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

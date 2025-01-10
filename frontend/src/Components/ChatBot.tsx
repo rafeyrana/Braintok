@@ -66,10 +66,9 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
         console.log('Loading previous messages');
         const previousMessages = await fetchPreviousMessages(userEmail, documentS3Key);
         console.log('Previous messages loaded:', previousMessages);
-        setMessages(previousMessages);
+        setMessages(previousMessages.reverse());
       } catch (err) {
         console.error('Error loading previous messages:', err);
-        // Don't set error state here as it might interfere with socket connection status
       } finally {
         setIsLoadingHistory(false);
       }
@@ -121,12 +120,12 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
   return (
     <div className="flex flex-col h-full">
       {/* Chat Header */}
-      <div className="p-4 border-b border-gray-700">
-        <h2 className="text-xl font-semibold text-white">Chat</h2>
+      <div className="flex-none p-3 border-b border-gray-700">
+        <h2 className="text-lg font-semibold text-white">Chat</h2>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {isLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="text-purple-400">Connecting...</div>
@@ -164,7 +163,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-700">
+      <div className="flex-none p-3 border-t border-gray-700">
         <div className="flex space-x-2">
           <input
             type="text"
@@ -172,18 +171,18 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="flex-1 bg-gray-700 text-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
             disabled={isLoading || !!error}
           />
           <button
             type="submit"
             disabled={!inputMessage.trim() || isLoading || !!error}
-            className="bg-purple-500 text-white rounded-full px-6 py-2 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-purple-500 text-white rounded-full px-4 py-2 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             Send
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

@@ -17,6 +17,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
   const [selectedText, setSelectedText] = useState('');
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   // Reset state when URL changes
   useEffect(() => {
@@ -62,29 +63,48 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
     }
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Calculate page width based on container size
+  const getPageWidth = () => {
+    // For mobile (< 768px), use full width minus padding
+    if (windowWidth < 768) {
+      return windowWidth - 32; // 16px padding on each side
+    }
+    // For desktop, use standard width
+    return Math.min(windowWidth - 48, 800);
+  };
+
   return (
-    <div className="pdf-viewer flex flex-col gap-4 w-[800px]">
+    <div className="pdf-viewer flex flex-col gap-4 w-full">
       {error ? (
         <div className="error-message text-red-500 p-4 bg-red-100/10 rounded-lg text-center">
           {error}
         </div>
       ) : (
         <>
-          <div className="controls bg-gray-800 p-4 rounded w-full">
-            <div className="flex justify-between items-center">
-              <div className="pagination flex items-center gap-4">
+          <div className="controls bg-gray-800 rounded-lg w-full">
+            <div className="flex flex-col sm:flex-row items-center gap-4 p-4">
+              <div className="pagination flex items-center gap-2 w-full sm:w-auto justify-center">
                 <button
-                  className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
+                  className="bg-purple-500 px-4 py-2 rounded-lg text-white text-sm disabled:opacity-50 min-w-[80px]"
                   onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                   disabled={currentPage <= 1}
                 >
                   Previous
                 </button>
-                <span className="text-white">
+                <span className="text-white text-sm min-w-[100px] text-center">
                   Page {currentPage} of {numPages}
                 </span>
                 <button
-                  className="bg-purple-500 px-4 py-2 rounded disabled:opacity-50"
+                  className="bg-purple-500 px-4 py-2 rounded-lg text-white text-sm disabled:opacity-50 min-w-[80px]"
                   onClick={() => setCurrentPage(prev => Math.min(numPages, prev + 1))}
                   disabled={currentPage >= numPages}
                 >
@@ -92,16 +112,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
                 </button>
               </div>
               
-              <div className="zoom flex items-center gap-4">
+              <div className="zoom flex items-center gap-2 justify-center w-full sm:w-auto">
                 <button
-                  className="bg-purple-500 px-4 py-2 rounded"
+                  className="bg-purple-500 w-8 h-8 rounded-lg text-white flex items-center justify-center"
                   onClick={() => setScale(prev => Math.max(0.5, prev - 0.1))}
                 >
                   -
                 </button>
-                <span className="text-white">{Math.round(scale * 100)}%</span>
+                <span className="text-white text-sm min-w-[60px] text-center">
+                  {Math.round(scale * 100)}%
+                </span>
                 <button
-                  className="bg-purple-500 px-4 py-2 rounded"
+                  className="bg-purple-500 w-8 h-8 rounded-lg text-white flex items-center justify-center"
                   onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
                 >
                   +
@@ -110,15 +132,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
             </div>
           </div>
 
-          <div className="document-container bg-gray-900/50 rounded-lg w-full h-[calc(100vh-200px)]">
+          <div className="document-container bg-gray-900/50 rounded-lg w-full flex-1 min-h-0">
             <div className="pdf-content h-full overflow-auto">
-              <div className="min-w-full min-h-full flex items-center justify-center p-4" onMouseUp={handleTextSelection}>
+              <div 
+                className="flex items-center justify-center p-2 sm:p-4" 
+                onMouseUp={handleTextSelection}
+              >
                 <Document
                   file={file}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={onDocumentLoadError}
                   loading={
-                    <div className="text-white p-4 bg-gray-800/50 rounded-lg text-center">
+                    <div className="text-white p-4 bg-gray-800/50 rounded-lg">
                       Loading document...
                     </div>
                   }
@@ -129,6 +154,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
                     scale={scale}
                     renderTextLayer={true}
                     renderAnnotationLayer={true}
+                    width={getPageWidth()}
+                    className="max-w-full"
                   />
                 </Document>
               </div>

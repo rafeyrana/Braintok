@@ -108,7 +108,7 @@ class DocumentService {
         .from('documents')
         .select('*')
         .eq('user_email', email)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Supabase error fetching documents:', error);

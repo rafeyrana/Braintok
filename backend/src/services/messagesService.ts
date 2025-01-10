@@ -28,7 +28,7 @@ class MessagesService {
         .select('content, created_at, user_email, is_user_message')
         .eq('user_email', email)
         .eq('s3_key', s3Key)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (error) {
         logger.error('Supabase error fetching messages:', error);

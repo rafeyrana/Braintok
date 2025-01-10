@@ -62,6 +62,7 @@ export const handleConnection = async (socket: AuthenticatedSocket) => {
         userId,
         isUser: false
       };
+      socket.emit('chatMessage', backendResponse);
       
       await messagesService.saveMessagePair(
         socket.userEmail,
@@ -69,7 +70,7 @@ export const handleConnection = async (socket: AuthenticatedSocket) => {
         userMessage,
         backendResponse
       );
-      socket.emit('chatMessage', backendResponse);
+      
       
       logger.info(`Chat message processed for user: ${userId}`, {
         userEmail,
