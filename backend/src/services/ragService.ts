@@ -1,4 +1,7 @@
 import { OpenAI } from '@langchain/openai';
+import { BufferWindowMemory } from 'langchain/memory';
+import { ConversationChain } from 'langchain/chains';
+import { PromptTemplate } from '@langchain/core/prompts';
 import { PineconeService } from './pineconeService';
 
 class RAGService {
@@ -6,7 +9,10 @@ class RAGService {
   private userEmail: string;
   private llm: OpenAI;
   private vectorStore: PineconeService;
-  constructor(s3Key: string, userEmail: string, model_name : string = 'gpt-3.5-turbo', temperature : number = 0.7) {
+  private memory: BufferWindowMemory;
+  private chain: ConversationChain;
+
+  constructor(s3Key: string, userEmail: string, model_name: string = 'gpt-3.5-turbo', temperature: number = 0.7) {
     this.s3Key = s3Key;
     this.userEmail = userEmail;
     
@@ -15,6 +21,7 @@ class RAGService {
       temperature: temperature,
       openAIApiKey: process.env.OPENAI_API_KEY,
     });
+
     this.vectorStore = new PineconeService({
       indexName: "braintok",
       indexConfig: {
@@ -26,25 +33,62 @@ class RAGService {
         },
       }
     });
-  }
 
-  async initialize(): Promise<void> {
-    await this.vectorStore.insertDocument(this.s3Key, this.userEmail);
+    // Initialize memory with window size of 10
+    this.memory = new BufferWindowMemory({ 
+      memoryKey: "chat_history",
+      k: 10,  
+      returnMessages: true,
+      inputKey: "input",
+      outputKey: "response"
+    });
+
+    // Initialize chain with RAG prompt
+    const template = `You are a helpful AI assistant answering questions based on provided context.
+
+Context from document: {context}
+
+Chat History: {chat_history}
+Human: {input}
+AI: `;
+
+    const prompt = PromptTemplate.fromTemplate(template);
+
+    this.chain = new ConversationChain({
+      llm: this.llm,
+      memory: this.memory,
+      prompt,
+      outputKey: "response",
+      verbose: true
+    });
   }
 
   async queryDocument(query: string): Promise<string> {
     try {
-      const vectorSearchResults = await this.vectorStore.vectorSearch(query, this.userEmail, this.s3Key);
-      console.log("these are the vector store results", vectorSearchResults);
-      // TODO: Implement context retrieval from vector store
-      // TODO: Generate response using LLM with context
+      // Get relevant context from vector store
+      const vectorSearchResults = await this.vectorStore.vectorSearch(
+        query, 
+        this.userEmail, 
+        this.s3Key
+      );
 
-      // Placeholder return
-      return "Response will be implemented with Pinecone integration";
+      // Combine context chunks
+      const context = vectorSearchResults.join('\n\n');
+
+      // Generate response using chain
+      const response = await this.chain.call({
+        input: query,
+        context: context
+      });
+
+      return response.response;
     } catch (error) {
       console.error('Error querying document:', error);
       throw error;
     }
+  }
+  async resetMemory(): Promise<void> {
+    await this.memory.clear();
   }
 }
 

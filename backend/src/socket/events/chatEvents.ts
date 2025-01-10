@@ -17,7 +17,6 @@ export const handleConnection = async (socket: AuthenticatedSocket) => {
   try {
     // Initialize RAG service for this connection
     const rag = new RAGService(s3Key, userEmail);
-    await rag.initialize();
     ragInstances.set(userId, rag);
     
     // Store the socket

@@ -63,7 +63,9 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
     const loadPreviousMessages = async () => {
       try {
         setIsLoadingHistory(true);
+        console.log('Loading previous messages');
         const previousMessages = await fetchPreviousMessages(userEmail, documentS3Key);
+        console.log('Previous messages loaded:', previousMessages);
         setMessages(previousMessages);
       } catch (err) {
         console.error('Error loading previous messages:', err);
