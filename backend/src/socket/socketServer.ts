@@ -18,11 +18,7 @@ export const initializeSocketServer = (httpServer: HttpServer) => {
     SocketData
   >(httpServer, {
     cors: {
-      origin: [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        process.env.FRONTEND_URL || ''
-      ],
+      origin: [process.env.FRONTEND_URL, process.env.VERCEL_URL].filter((origin): origin is string => !!origin),
       methods: ['GET', 'POST'],
       credentials: true
     }

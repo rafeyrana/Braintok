@@ -26,7 +26,7 @@ initializeSocketServer(httpServer);
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.VERCEL_URL || ''],
+  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL || ''],
   credentials: true
 }));
 app.use(express.json());
@@ -70,7 +70,7 @@ const PORT = process.env.PORT || 5001;
 
 httpServer.listen(PORT, () => {
   logger.info(`Server running on port ${PORT}`);
-  logger.info(`Socket.IO server available at ws://localhost:${PORT}`);
+  logger.info(`Socket.IO server available at ${process.env.BACKEND_URL || `ws://localhost:${PORT}`}`);
 });
 
 export default app;
