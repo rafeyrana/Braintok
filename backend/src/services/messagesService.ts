@@ -28,7 +28,7 @@ class MessagesService {
         .select('content, created_at, user_email, is_user_message')
         .eq('user_email', email)
         .eq('s3_key', s3Key)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) {
         logger.error('Supabase error fetching messages:', error);
@@ -56,19 +56,23 @@ class MessagesService {
     backendResponse: ChatMessage
   ): Promise<void> {
     try {
-      // Prepare both messages for insertion with only the fields that exist in the table
+      const now = new Date();
+      const responseTime = new Date(now.getTime() + 1000); // Add 1 second for backend response
+
       const messages = [
         {
           user_email: userEmail,
           s3_key: s3Key,
           content: userMessage.content,
-          is_user_message: true
+          is_user_message: true,
+          created_at: now.toISOString() // Current time for user message
         },
         {
           user_email: userEmail,
           s3_key: s3Key,
           content: backendResponse.content,
-          is_user_message: false
+          is_user_message: false,
+          created_at: responseTime.toISOString() // Current time + 1 second for backend response
         }
       ];
 

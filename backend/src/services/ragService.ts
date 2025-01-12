@@ -75,16 +75,39 @@ AI: `;
       // Combine context chunks
       const context = vectorSearchResults.join('\n\n');
 
-      // Generate response using chain
-      const response = await this.chain.call({
-        input: query,
-        context: context
-      });
+      try {
+        // Generate response using chain
+        const response = await this.chain.call({
+          input: query,
+          context: context
+        });
 
-      return response.response;
+        return response.response;
+      } catch (chainError) {
+        console.error('Chain error:', chainError);
+        
+        // Fallback: Direct LLM call without memory if chain fails
+        const fallbackResponse = await this.llm.predict(
+          `Context: ${context}\n\nQuestion: ${query}\n\nAnswer: `
+        );
+
+        // Try to save to memory but don't break if it fails
+        try {
+          await this.memory.saveContext(
+            { input: query },
+            { response: fallbackResponse }
+          );
+        } catch (memoryError) {
+          console.error('Memory save error:', memoryError);
+        }
+
+        return fallbackResponse;
+      }
     } catch (error) {
       console.error('Error querying document:', error);
-      throw error;
+      
+      // Final fallback response if everything fails
+      return "I apologize, but I'm having trouble processing your request at the moment. Please try asking your question again, or rephrase it slightly differently.";
     }
   }
   async resetMemory(): Promise<void> {
