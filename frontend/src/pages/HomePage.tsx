@@ -13,14 +13,16 @@ const HomePage: React.FC = () => {
     <div className="flex flex-col min-h-screen bg-black">
       <Navbar />
       
-      <div className="flex mt-20 transition-all duration-300 ease-in-out">
-        <Sidebar />
+      <div className="flex mt-16 w-full relative">
+        <div className="absolute z-50">
+          <Sidebar />
+        </div>
 
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-2 sm:p-4 md:p-6 w-full">
           {oldUser ? (
-            <div className="py-8">
-              <h1 className="text-3xl font-bold text-purple-400">Welcome to BRAINTOK</h1>
-              <p className="mt-4 text-gray-300">Logged in as: {userEmail}</p>
+            <div className="py-4 sm:py-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-purple-400">Welcome to BRAINTOK</h1>
+              <p className="mt-2 sm:mt-4 text-gray-300">Logged in as: {userEmail}</p>
             </div>
           ) : (
             <UploadDoc />
