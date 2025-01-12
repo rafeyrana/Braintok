@@ -15,9 +15,10 @@ const Sidebar: React.FC = () => {
       if (userEmail) {
         try {
           const docs = await documentService.getDocuments(userEmail);
-          setDocuments(docs);
+          setDocuments(Array.isArray(docs) ? docs : []);
         } catch (error) {
           console.error('Failed to fetch documents:', error);
+          setDocuments([]);
         }
       }
     };
@@ -67,7 +68,7 @@ const Sidebar: React.FC = () => {
             </button>
           </div>
           <div className="space-y-2 overflow-y-auto h-full">
-            {documents.map((doc) => (
+            {Array.isArray(documents) && documents.map((doc) => (
               <DocumentCard
                 key={doc.s3_key}
                 name={doc.filename}
