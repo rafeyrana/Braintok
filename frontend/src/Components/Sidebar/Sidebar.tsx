@@ -21,6 +21,7 @@ const Sidebar: React.FC = () => {
           setDocuments([]);
         }
       }
+      
     };
 
     fetchDocuments();
