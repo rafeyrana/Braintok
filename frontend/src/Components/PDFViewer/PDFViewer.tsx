@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { useNavigate } from 'react-router-dom';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 
@@ -12,6 +13,7 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
+  const navigate = useNavigate();
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
@@ -62,6 +64,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
       }
     }
   };
+  function tiktokify(pdfUrl: string) {
+    // Store the current document URL or ID in state/localStorage if needed
+    navigate(`/braintoks?url=${encodeURIComponent(pdfUrl)}`);
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -127,6 +133,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
                   onClick={() => setScale(prev => Math.min(2, prev + 0.1))}
                 >
                   +
+                </button>
+                <button className="bg-purple-500 px-4 py-2 rounded-lg text-white text-sm flex items-center justify-center gap-2"
+                  onClick={() => tiktokify(url)}>
+                  Tiktokify
                 </button>
               </div>
             </div>

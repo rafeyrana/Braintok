@@ -7,6 +7,7 @@ import LandingPage from './Components/LandingPage';
 import Auth from './pages/Auth';
 import HomePage from './pages/HomePage';
 import DocumentChat from './pages/DocumentChat';
+import BrainToks from './pages/BrainToks';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -50,6 +51,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <DocumentChat />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/braintoks"
+              element={
+                <PrivateRoute>
+                  <BrainToks />
                 </PrivateRoute>
               }
             />

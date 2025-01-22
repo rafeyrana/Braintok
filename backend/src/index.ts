@@ -8,6 +8,7 @@ import { requestLogger } from './middleware/requestLogger';
 import { initializeSocketServer } from './socket/socketServer';
 import logger from './utils/logger';
 import messageRoutes from './routes/messageRoutes';
+import tiktokRoutes from './routes/tiktokRoutes';
 
 dotenv.config();
 
@@ -34,7 +35,7 @@ app.use((req, res, next) => {
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/messages', messageRoutes);
-
+app.use('/api/tiktok', tiktokRoutes)
 
 // Health check endpoint
 app.get('/health', (req, res) => {
