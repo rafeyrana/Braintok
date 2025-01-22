@@ -7,11 +7,11 @@ class S3Service {
   private readonly _s3Client: S3Client;
   private readonly _bucketName: string;
 
-  constructor() {
-    const region = process.env.AWS_REGION;
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-    const bucketName = process.env.S3_BUCKET_NAME;
+  constructor(serviceType : string) {
+    const region = serviceType === 'documents' ? process.env.AWS_REGION : process.env.AWS_REGION_TIKTOK;
+    const accessKeyId = serviceType === 'documents' ? process.env.AWS_ACCESS_KEY_ID : process.env.AWS_ACCESS_KEY_ID_TIKTOK;
+    const secretAccessKey = serviceType === 'documents' ? process.env.AWS_SECRET_ACCESS_KEY : process.env.AWS_SECRET_ACCESS_KEY_TIKTOK;
+    const bucketName = serviceType === 'documents' ? process.env.S3_BUCKET_NAME : process.env.S3_BUCKET_NAME_TIKTOK;
 
     if (!region || !accessKeyId || !secretAccessKey || !bucketName) {
       throw new Error('Missing required AWS configuration');
@@ -159,4 +159,6 @@ class S3Service {
   }
 }
 
-export const s3Service = new S3Service();
+export const s3Service = new S3Service('documents');
+
+// export const s3TiktokService = new S3Service('tiktok');

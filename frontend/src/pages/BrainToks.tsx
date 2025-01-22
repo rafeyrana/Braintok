@@ -4,6 +4,8 @@ import Navbar from '../Components/Navbar';
 import Sidebar from '../Components/Sidebar';
 import TikTokCard from '../Components/TikTokCard/TikTokCard';
 import { buildTiktok } from '../api/tiktokBuilding';
+import { useAppSelector } from '../store/hooks';
+import { selectUserEmail } from '../store/slices/userSlice';
 
 interface VideoData {
   pdfUrl: string;
@@ -14,18 +16,20 @@ const BrainToks: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [videos, setVideos] = useState<VideoData[]>([]);
   const pdfUrl = searchParams.get('url');
+  const userEmail = useAppSelector(selectUserEmail);
 
   useEffect(() => {
-    if (pdfUrl) {
+    if (pdfUrl && userEmail) {
       // Add the new PDF to the list of videos being processed
       setVideos(prev => [...prev, { pdfUrl }]);
-      const video_url = buildTiktok(pdfUrl);
+      
+      const video_url = buildTiktok(pdfUrl, userEmail);
       console.log(video_url)
 
       // The backend will return a video URL once processing is complete
       // For now, we'll just show the processing state
     }
-  }, [pdfUrl]);
+  }, [pdfUrl, userEmail]);
 
   return (
     <div className="flex flex-col min-h-screen bg-black">
