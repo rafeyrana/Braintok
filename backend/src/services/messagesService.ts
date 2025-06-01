@@ -1,29 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
 import { ChatMessage } from '../socket/types/socket.types';
 import logger from '../utils/logger';
+import supabaseClient from '../lib/supabaseClient'; // Import centralized client
 
 class MessagesService {
-  private supabase;
-
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase URL and service role key are required. Check your .env file.');
-    }
-
-    this.supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    // Constructor can be used for other dependency injections if needed later.
+    // For now, it's simplified as Supabase client is imported.
   }
 
   async getAllMessagesByEmailAndS3key(email: string, s3Key: string): Promise<ChatMessage[]> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabaseClient // Use imported client
         .from('messages')
         .select('content, created_at, user_email, is_user_message')
         .eq('user_email', email)
@@ -77,7 +64,7 @@ class MessagesService {
       ];
 
       // Insert both messages
-      const { error } = await this.supabase
+      const { error } = await supabaseClient // Use imported client
         .from('messages')
         .insert(messages);
 

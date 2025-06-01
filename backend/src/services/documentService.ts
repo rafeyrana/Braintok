@@ -1,24 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
 import { Document, UploadCompletionDTO } from '../types/documents';
 import { v4 as uuidv4 } from 'uuid';
+import supabaseClient from '../lib/supabaseClient'; // Import centralized client
 
 class DocumentService {
-  private supabase;
-
   constructor() {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase URL and service role key are required. Check your .env file.');
-    }
-
-    this.supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    // Constructor can be used for other dependency injections if needed later.
+    // For now, it's simplified as Supabase client is imported.
   }
 
   async createPendingDocument(
@@ -30,7 +17,7 @@ class DocumentService {
   ): Promise<string> {
     try {
       const documentId = uuidv4();
-      const { error } = await this.supabase.from('documents').insert({
+      const { error } = await supabaseClient.from('documents').insert({ // Use imported client
         id: documentId,
         user_email: email,
         filename,
@@ -58,7 +45,7 @@ class DocumentService {
     error?: string
   ): Promise<void> {
     try {
-      const { error: updateError } = await this.supabase
+      const { error: updateError } = await supabaseClient // Use imported client
         .from('documents')
         .update({
           upload_status: status,
@@ -82,7 +69,7 @@ class DocumentService {
       const { documents, email } = completion;
 
       for (const doc of documents) {
-        const { error } = await this.supabase
+        const { error } = await supabaseClient // Use imported client
           .from('documents')
           .update({
             upload_status: doc.status,
@@ -104,7 +91,7 @@ class DocumentService {
 
   async getDocumentsByEmail(email: string): Promise<Document[]> {
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await supabaseClient // Use imported client
         .from('documents')
         .select('*')
         .eq('user_email', email)
@@ -123,7 +110,7 @@ class DocumentService {
 
   async deleteDocumentByS3Key(email: string, s3Key: string): Promise<void> {
     try {
-      await this.supabase.from('documents').delete().eq('user_email', email).eq('s3_key', s3Key);
+      await supabaseClient.from('documents').delete().eq('user_email', email).eq('s3_key', s3Key); // Use imported client
     } catch (error) {
       console.error('Error deleting document:', error);
       throw new Error('Failed to delete document');

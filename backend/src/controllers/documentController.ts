@@ -1,53 +1,92 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express'; // Use correct Express types
+import { z } from 'zod'; // Import Zod
 import { s3Service } from '../services/s3Service';
 import { documentService } from '../services/documentService';
-import { RequestUploadDTO, UploadCompletionDTO } from '../types/documents';
-import { logInfo, logError, logDebug } from '../utils/logger';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+// Assuming RequestUploadDTO and UploadCompletionDTO might be replaced or augmented by Zod schemas for validation
+// For now, we'll define Zod schemas directly in the controller file for clarity,
+// but they could be moved to `types/documents.zod.ts` or similar later.
+import { logInfo, logError } from '../utils/logger';
+import { Document as DocumentType } from '../types/documents'; // Rename imported Document to avoid conflict
 
-export interface Document {
-  name : string,
-  uploadOn: Date,
-  s3Key: string
-}
+// Zod Schemas for validation
+const fileSchema = z.object({
+  filename: z.string().min(1),
+  fileType: z.string().min(1),
+  size: z.number().positive(),
+});
+
+const requestUploadBodySchema = z.object({
+  files: z.array(fileSchema).min(1),
+  email: z.string().email(),
+});
+
+const documentCompletionSchema = z.object({
+  documentId: z.string().uuid(),
+  s3Key: z.string().min(1),
+  fileName: z.string().min(1), // Added fileName for completeness from context
+  status: z.enum(['success', 'failed']),
+  error: z.string().optional(),
+  metadata: z.object({ // Added metadata based on UploadCompletionDTO
+    size: z.number().positive(),
+    type: z.string().min(1),
+    lastModified: z.string().min(1), // Consider z.dateString() if format is ISO, or transform
+  })
+});
+
+const confirmUploadBodySchema = z.object({
+  documents: z.array(documentCompletionSchema).min(1),
+  email: z.string().email(),
+});
+
+const emailQuerySchema = z.object({
+  email: z.string().email(),
+});
+
+const s3KeyQuerySchema = z.object({
+  s3Key: z.string().min(1),
+});
+
+const deleteDocumentQuerySchema = z.object({
+   s3Key: z.string().min(1),
+   email: z.string().email(),
+});
+
+// Remove local Document interface as DocumentType from types/documents.ts is now used
+// export interface Document {
+//   name : string,
+//   uploadOn: Date,
+//   s3Key: string
+// }
+
 export class DocumentController {
   constructor() {
-    // Bind methods to ensure correct 'this' context
     this.requestUpload = this.requestUpload.bind(this);
     this.confirmUpload = this.confirmUpload.bind(this);
     this.getDocuments = this.getDocuments.bind(this);
     this.getDocumentAccessLinkByS3Key = this.getDocumentAccessLinkByS3Key.bind(this);
+    this.deleteDocumentByS3Key = this.deleteDocumentByS3Key.bind(this); // Bind new method
   }
 
-  async requestUpload(req: any, res: any) {
+  async requestUpload(req: Request, res: Response, next: NextFunction) {
     try {
-      logInfo('Requesting upload', { body: req.body });
-      const { files, email } = req.body;
-
-      if (!files || files.length === 0) {
-        logError('No files specified', undefined, { body: req.body });
-        return res.status(400).json({ error: 'No files specified' });
+      const validationResult = requestUploadBodySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        logError('Invalid request body for requestUpload', undefined, { errors: validationResult.error.flatten() });
+        return res.status(400).json({ error: 'Invalid request body', details: validationResult.error.flatten() });
       }
+      const { files, email } = validationResult.data;
 
-      if (!email) {
-        logError('Email is required', undefined, { body: req.body });
-        return res.status(400).json({ error: 'Email is required' });
-      }
+      logInfo('Requesting upload', { email, fileCount: files.length });
 
       const uploads = await Promise.all(
-        files.map(async (file: any) => {
+        files.map(async (file) => {
           logInfo('Generating presigned URL', { email, fileName: file.filename, fileType: file.fileType });
-          // Generate presigned URL
           const { presignedUrl, s3Key } = await s3Service.generatePresignedUrl(
             email,
             file.filename,
             file.fileType
           );
-
           logInfo('Generated presigned URL successfully', { email, fileName: file.filename });
-
-          // Create pending document record
           const documentId = await documentService.createPendingDocument(
             email,
             file.filename,
@@ -55,129 +94,105 @@ export class DocumentController {
             file.size,
             file.fileType
           );
-
-          return {
-            documentId,
-            presignedUrl,
-            s3Key,
-          };
+          return { documentId, presignedUrl, s3Key };
         })
       );
-
-      logInfo('Upload request processed successfully', { body: req.body });
       res.json({ uploads });
     } catch (error: any) {
       logError('Error in requestUpload', error, { body: req.body });
-      res.status(500).json({ error: 'Failed to process upload request' });
+      next(error); // Pass to global error handler
     }
   }
 
-  async confirmUpload(req: any, res: any) {
+  async confirmUpload(req: Request, res: Response, next: NextFunction) {
     try {
-      logInfo('Confirming upload', { body: req.body });
-      const completion = req.body;
-
-      if (!completion.email) {
-        logError('Email is required', undefined, { body: req.body });
-        return res.status(400).json({ error: 'Email is required' });
+      const validationResult = confirmUploadBodySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        logError('Invalid request body for confirmUpload', undefined, { errors: validationResult.error.flatten() });
+        return res.status(400).json({ error: 'Invalid request body', details: validationResult.error.flatten() });
       }
+      // Use validated data (example, though 'completion' was used loosely before)
+      const confirmedUploadData = validationResult.data;
 
-      if (!completion.documents || completion.documents.length === 0) {
-        logError('No documents specified', undefined, { body: req.body });
-        return res.status(400).json({ error: 'No documents specified' });
-      }
+      logInfo('Confirming upload', { email: confirmedUploadData.email, documentCount: confirmedUploadData.documents.length });
 
-      // Verify each file exists in S3
-      for (const doc of completion.documents) {
-        logInfo('Verifying file upload', { email: completion.email, fileName: doc.fileName });
+      for (const doc of confirmedUploadData.documents) {
+        logInfo('Verifying file upload', { email: confirmedUploadData.email, fileName: doc.fileName });
         const exists = await s3Service.verifyFileUpload(doc.s3Key);
         if (!exists && doc.status === 'success') {
-          doc.status = 'failed';
+          doc.status = 'failed'; // Modify a copy if this data is used elsewhere, or ensure this is intended
           doc.error = 'File not found in S3';
-          logError('File not found during upload confirmation', undefined, { email: completion.email, fileName: doc.fileName });
+          logError('File not found during upload confirmation', undefined, { email: confirmedUploadData.email, fileName: doc.fileName });
         }
       }
+      logInfo('Upload verification completed for user', { email: confirmedUploadData.email });
 
-      logInfo('Upload verification completed', { body: req.body });
+      // documentService.processUploadCompletion likely expects a type similar to UploadCompletionDTO
+      // We need to ensure confirmedUploadData matches this or adapt it.
+      // For now, assuming it's compatible or will be adjusted in the service/repository layer.
+      await documentService.processUploadCompletion(confirmedUploadData);
 
-      // Update document statuses in database
-      await documentService.processUploadCompletion(completion);
-
-      logInfo('Upload completion processed successfully', { body: req.body });
       res.json({ message: 'Upload completion processed successfully' });
     } catch (error: any) {
       logError('Error in confirmUpload', error, { body: req.body });
-      res.status(500).json({ error: 'Failed to process upload completion' });
+      next(error); // Pass to global error handler
     }
   }
 
-  
-  async getDocuments(req: any, res: any) {
+  async getDocuments(req: Request, res: Response, next: NextFunction) {
     try {
-      logInfo('Fetching documents', { query: req.query });
-      const email = req.query.email as string;
-
-      if (!email) {
-        logError('Email is required', undefined, { query: req.query });
-        return res.status(400).json({ error: 'Email is required' });
+      const validationResult = emailQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        logError('Invalid query params for getDocuments', undefined, { errors: validationResult.error.flatten() });
+        return res.status(400).json({ error: 'Invalid query parameters', details: validationResult.error.flatten() });
       }
+      const { email } = validationResult.data;
 
-      const apiDocuments = await documentService.getDocumentsByEmail(email);
-    
-
-    logInfo('Documents fetched successfully', { email, count: apiDocuments.length });
-    res.json(apiDocuments);
+      logInfo('Fetching documents', { email });
+      const apiDocuments: DocumentType[] = await documentService.getDocumentsByEmail(email);
+      logInfo('Documents fetched successfully', { email, count: apiDocuments.length });
+      res.json(apiDocuments);
     } catch (error: any) {
       logError('Error in getDocuments', error, { query: req.query });
-      res.status(500).json({ error: 'Failed to fetch documents' });
+      next(error); // Pass to global error handler
     }
   }
 
-  async getDocumentAccessLinkByS3Key(req: any, res: any) {
+  async getDocumentAccessLinkByS3Key(req: Request, res: Response, next: NextFunction) {
     try {
-      const { s3Key } = req.query;
-      if (!s3Key || typeof s3Key !== 'string') {
-        return res.status(400).json({ error: 'Valid s3Key is required' });
+      const validationResult = s3KeyQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        logError('Invalid query params for getDocumentAccessLinkByS3Key', undefined, { errors: validationResult.error.flatten() });
+        return res.status(400).json({ error: 'Invalid query parameters', details: validationResult.error.flatten() });
       }
+      const { s3Key } = validationResult.data;
 
-      const command = new GetObjectCommand({
-        Bucket: s3Service.bucketName,
-        Key: s3Key
-      });
-
-      const presignedUrl = await getSignedUrl(s3Service.s3Client, command, {
-        expiresIn: 300 // 5 minutes in seconds
-      });
-      logInfo('Generated document access link', { s3Key });
+      logInfo('Generating document access link', { s3Key });
+      const presignedUrl = await s3Service.generatePresignedGetUrl(s3Key);
       res.json({ presignedUrl });
-      
-    } catch (error) {
-      logError('Error generating document access link', error as Error, { s3Key: req.query.s3Key });
-      res.status(500).json({ error: 'Failed to generate document access link' });
+    } catch (error: any) {
+      logError('Error generating document access link', error, { query: req.query });
+      next(error); // Pass to global error handler
     }
   }
 
-  async deleteDocumentByS3Key(req: any, res: any){
-    try{
-      let s3Key = req.query.s3Key;
-      let email = req.query.email;
-      if (!s3Key || typeof s3Key !== 'string') {
-        console.log('s3Key is required when deleting');
-        return res.status(400).json({ error: 'Valid s3Key is required' });
+  async deleteDocumentByS3Key(req: Request, res: Response, next: NextFunction) {
+    try {
+      const validationResult = deleteDocumentQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        logError('Invalid query params for deleteDocumentByS3Key', undefined, { errors: validationResult.error.flatten() });
+        return res.status(400).json({ error: 'Invalid query parameters', details: validationResult.error.flatten() });
       }
-      if (!email || typeof email !== 'string') {
-        return res.status(400).json({ error: 'Valid email is required' });
-      }
+      const { s3Key, email } = validationResult.data;
 
+      logInfo('Deleting document', { s3Key, email });
       await s3Service.deleteFile(s3Key);
       await documentService.deleteDocumentByS3Key(email, s3Key);
-      logInfo('Document deleted successfully', { s3Key });
-      console.log('Document deleted successfully', s3Key, email);
+      logInfo('Document deleted successfully', { s3Key, email });
       res.json({ message: 'Document deleted successfully' });
-
     } catch (error: any) {
       logError('Error in deleteDocumentByS3Key', error, { query: req.query });
-      res.status(500).json({ error: 'Failed to delete document' });
+      next(error); // Pass to global error handler
     }
   }
 }

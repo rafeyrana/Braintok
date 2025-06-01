@@ -1,44 +1,17 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'; // S3Client is imported from lib
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logInfo, logError, logDebug, logWarn } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import s3Client, { bucketName as s3BucketName } from '../lib/s3Client'; // Import centralized client and bucket name
 
 class S3Service {
-  private readonly _s3Client: S3Client;
-  private readonly _bucketName: string;
-
   constructor() {
-    const region = process.env.AWS_REGION;
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-    const bucketName = process.env.S3_BUCKET_NAME;
-
-    if (!region || !accessKeyId || !secretAccessKey || !bucketName) {
-      throw new Error('Missing required AWS configuration');
-    }
-
-    this._s3Client = new S3Client({
-      region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
-    });
-    this._bucketName = bucketName;
-    
-    logInfo('S3Service initialized', { 
-      region: process.env.AWS_REGION,
-      bucket: this._bucketName 
-    });
+    // Constructor is simplified as S3 client and bucket name are imported.
+    // Initialization logging is now in s3Client.ts.
   }
 
-  get bucketName() {
-    return this._bucketName;
-  }
-
-  get s3Client() {
-    return this._s3Client;
-  }
+  // Getters for s3Client and bucketName can be removed if they just return imported values.
+  // For now, let's assume direct usage of imported s3Client and s3BucketName.
 
   async generatePresignedUrl(
     email: string,
@@ -59,14 +32,14 @@ class S3Service {
       logDebug('Generating presigned URL', { email, filename, fileType, s3Key });
 
       const command = new PutObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: s3BucketName, // Use imported bucketName
         Key: s3Key,
         ContentType: fileType,
         ACL: 'private'
       });
 
       // Generate presigned URL with longer expiration
-      const presignedUrl = await getSignedUrl(this.s3Client, command, {
+      const presignedUrl = await getSignedUrl(s3Client, command, { // Use imported s3Client
         expiresIn: 3600,
       });
 
@@ -88,11 +61,11 @@ class S3Service {
       logDebug('Verifying file upload', { s3Key });
 
       const command = new HeadObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: s3BucketName, // Use imported bucketName
         Key: s3Key,
       });
 
-      await this.s3Client.send(command);
+      await s3Client.send(command); // Use imported s3Client
       
       logInfo('File upload verified successfully', { s3Key });
       return true;
@@ -111,11 +84,11 @@ class S3Service {
       logDebug('Deleting file', { s3Key });
 
       const command = new DeleteObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: s3BucketName, // Use imported bucketName
         Key: s3Key
       });
 
-      await this.s3Client.send(command);
+      await s3Client.send(command); // Use imported s3Client
       
       logInfo('File deleted successfully', { s3Key });
     } catch (error) {
@@ -129,11 +102,11 @@ class S3Service {
       logDebug('Fetching object content from S3', { s3Key });
 
       const command = new GetObjectCommand({
-        Bucket: this.bucketName,
+        Bucket: s3BucketName, // Use imported bucketName
         Key: s3Key,
       });
 
-      const response = await this.s3Client.send(command);
+      const response = await s3Client.send(command); // Use imported s3Client
       
       if (!response.Body) {
         throw new Error('Empty response body from S3');
@@ -155,6 +128,24 @@ class S3Service {
     } catch (error) {
       logError('Error fetching object content from S3', error as Error, { s3Key });
       throw new Error('Failed to fetch object content from S3');
+    }
+  }
+
+  async generatePresignedGetUrl(s3Key: string): Promise<string> {
+    try {
+      logDebug('Generating presigned GET URL', { s3Key });
+      const command = new GetObjectCommand({
+        Bucket: s3BucketName, // Use imported bucketName
+        Key: s3Key,
+      });
+      const presignedUrl = await getSignedUrl(s3Client, command, { // Use imported s3Client
+        expiresIn: 300, // 5 minutes
+      });
+      logInfo('Generated presigned GET URL successfully', { s3Key });
+      return presignedUrl;
+    } catch (error) {
+      logError('Error generating presigned GET URL', error as Error, { s3Key });
+      throw new Error('Failed to generate presigned GET URL');
     }
   }
 }

@@ -1,30 +1,33 @@
 // src/controllers/messagesController.ts
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express'; // Import NextFunction
+import { z } from 'zod'; // Import Zod
 import { messagesService } from '../services/messagesService';
 import { logInfo, logError } from '../utils/logger';
+import { ChatMessage } from '../socket/types/socket.types'; // Import ChatMessage type
+
+// Zod Schema for getAllMessages query parameters
+const getAllMessagesQuerySchema = z.object({
+  email: z.string().email(),
+  s3Key: z.string().min(1),
+});
 
 export class MessagesController {
   constructor() {
-    // Bind methods to ensure correct 'this' context
     this.getAllMessages = this.getAllMessages.bind(this);
   }
 
-  async getAllMessages(req: any, res: any) {
+  async getAllMessages(req: Request, res: Response, next: NextFunction) { // Add NextFunction for completeness
     try {
-      const email = req.query.email as string;
-      const s3Key = req.query.s3Key as string;
+      const validationResult = getAllMessagesQuerySchema.safeParse(req.query);
 
-      if (!email) {
-        logError('Email is required', undefined, { query: req.query });
-        return res.status(400).json({ error: 'Email is required' });
+      if (!validationResult.success) {
+        logError('Invalid query parameters for getAllMessages', undefined, { errors: validationResult.error.flatten(), query: req.query });
+        return res.status(400).json({ error: 'Invalid query parameters', details: validationResult.error.flatten() });
       }
 
-      if (!s3Key) {
-        logError('s3Key is required', undefined, { query: req.query });
-        return res.status(400).json({ error: 's3Key is required' });
-      }
+      const { email, s3Key } = validationResult.data;
 
-      const messages = await messagesService.getAllMessagesByEmailAndS3key(email, s3Key);
+      const messages: ChatMessage[] = await messagesService.getAllMessagesByEmailAndS3key(email, s3Key);
 
       logInfo('Messages fetched successfully', { 
         email, 
@@ -35,6 +38,8 @@ export class MessagesController {
       res.json(messages);
     } catch (error) {
       logError('Error in getAllMessages', error as Error, { query: req.query });
+      // Pass error to global error handler or handle as before
+      // next(error);
       res.status(500).json({ error: 'Failed to fetch messages' });
     }
   }
