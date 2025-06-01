@@ -6,7 +6,6 @@ import PDFViewer from '../Components/PDFViewer/PDFViewer';
 import ChatBot from '../Components/ChatBot';
 import { documentService } from '../services/documentService';
 import { useAppSelector } from '../store/hooks';
-import { selectUserEmail } from '../store/slices/userSlice';
 
 interface DocumentDetails {
   presignedUrl: string;
@@ -17,8 +16,6 @@ const DocumentChat: React.FC = () => {
   const [documentDetails, setDocumentDetails] = useState<DocumentDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedText, setSelectedText] = useState<string[]>([]);
-  const userEmail = useAppSelector(selectUserEmail);
 
   useEffect(() => {
     const fetchDocumentDetails = async () => {
@@ -48,10 +45,6 @@ const DocumentChat: React.FC = () => {
 
     fetchDocumentDetails();
   }, [s3Key]);
-
-  const handleTextSelect = (text: string) => {
-    setSelectedText(prev => [...prev, text]);
-  };
 
   const pdfViewerKey = documentDetails?.presignedUrl || 'no-url';
 
@@ -85,7 +78,6 @@ const DocumentChat: React.FC = () => {
                     <PDFViewer 
                       key={pdfViewerKey}
                       url={documentDetails.presignedUrl} 
-                      onTextSelect={handleTextSelect}
                     />
                   </div>
                 </div>
@@ -94,9 +86,8 @@ const DocumentChat: React.FC = () => {
 
             {/* Chat container */}
             <div className="flex-1 lg:w-1/3 lg:max-w-[400px] min-h-0 bg-gray-900/50 rounded-lg overflow-hidden order-2">
-              {userEmail && s3Key ? (
+              {s3Key ? (
                 <ChatBot 
-                  userEmail={userEmail}
                   documentS3Key={s3Key}
                 />
               ) : null}

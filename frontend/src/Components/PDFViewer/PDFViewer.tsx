@@ -8,15 +8,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/$
 
 interface PDFViewerProps {
   url: string;
-  onTextSelect?: (text: string) => void;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ url }) => {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
-  const [selectedText, setSelectedText] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   // Reset state when URL changes
@@ -24,7 +22,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
     setError(null);
     setNumPages(0);
     setCurrentPage(1);
-    setSelectedText('');
   }, [url]);
 
   // Memoize the file prop
@@ -56,10 +53,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ url, onTextSelect }) => {
     const selection = window.getSelection();
     if (selection) {
       const text = selection.toString().trim();
-      if (text && text !== selectedText) {
-        setSelectedText(text);
-        onTextSelect?.(text);
-      }
+      // If 'text' is not empty, it means something was selected.
+      // Future functionality could be added here if needed.
+      // For now, the function confirms selection but doesn't propagate it or store it.
     }
   };
 
