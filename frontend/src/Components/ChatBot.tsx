@@ -2,13 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { socketService } from '../services/socketService';
 import { ChatMessage, SocketInitParams } from '../types/socket.types';
 import { fetchPreviousMessages } from '../api/chatbotMessages';
+import { useAppSelector } from '../store/hooks';
+import { selectUserEmail } from '../store/slices/userSlice';
 
 interface ChatBotProps {
-  userEmail: string;
   documentS3Key: string;
 }
 
-const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
+const ChatBot: React.FC<ChatBotProps> = ({ documentS3Key }) => {
+  const userEmail = useAppSelector(selectUserEmail);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +27,13 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
   }, [messages]);
 
   useEffect(() => {
+    // Ensure userEmail is present before proceeding
+    if (!userEmail) {
+      setIsLoading(false);
+      setError("User email not found. Cannot initialize chat."); // Or handle appropriately
+      return;
+    }
+
     let messageUnsubscribe: (() => void) | undefined;
     let errorUnsubscribe: (() => void) | undefined;
     let connectUnsubscribe: (() => void) | undefined;
@@ -80,6 +89,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
       loadPreviousMessages()
     ]).catch(err => {
       console.error('Error during initialization:', err);
+      setError(err instanceof Error ? err.message : 'Error during initialization');
     });
 
     return () => {
@@ -92,12 +102,12 @@ const ChatBot: React.FC<ChatBotProps> = ({ userEmail, documentS3Key }) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputMessage.trim()) {
+    if (inputMessage.trim() && userEmail) { // Ensure userEmail is available
       try {
         const newMessage: ChatMessage = {
           content: inputMessage,
           timestamp: Date.now(),
-          userId: userEmail,
+          userId: userEmail, // userEmail from useAppSelector
           isUser: true
         };
         
